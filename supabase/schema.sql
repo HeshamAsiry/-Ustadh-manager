@@ -1,0 +1,23 @@
+-- Ustadh Manager core schema
+create extension if not exists pgcrypto;
+
+create table if not exists profiles (id uuid primary key default gen_random_uuid(), name text not null, timezone text not null default 'Africa/Cairo', locale text not null default 'ar', created_at timestamptz not null default now());
+create table if not exists students (id uuid primary key default gen_random_uuid(), teacher_id uuid references profiles(id) on delete cascade, name text not null, birth_date date, country text, timezone text, native_language text, parent_name text, parent_contact text, report_locale text not null default 'ar', monthly_hours numeric(6,2) default 0, status text not null default 'active' check(status in ('active','paused','archived','waiting')), notes text, created_at timestamptz not null default now());
+create table if not exists subjects (id uuid primary key default gen_random_uuid(), teacher_id uuid references profiles(id) on delete cascade, name_ar text not null, name_fr text, name_en text, active boolean not null default true);
+create table if not exists curricula (id uuid primary key default gen_random_uuid(), teacher_id uuid references profiles(id) on delete cascade, name text not null, category text, description text, active boolean not null default true);
+create table if not exists learning_paths (id uuid primary key default gen_random_uuid(), student_id uuid references students(id) on delete cascade, subject_id uuid references subjects(id), curriculum_id uuid references curricula(id), stage text, current_unit text, progress numeric(5,2) default 0, notes text);
+create table if not exists lessons (id uuid primary key default gen_random_uuid(), teacher_id uuid references profiles(id) on delete cascade, student_id uuid references students(id) on delete cascade, starts_at timestamptz not null, ends_at timestamptz not null, timezone text not null, kind text not null default 'regular' check(kind in ('regular','makeup','extra')), status text not null default 'scheduled' check(status in ('scheduled','completed','cancelled','pending_makeup')), original_lesson_id uuid references lessons(id), created_at timestamptz not null default now());
+create table if not exists personal_events (id uuid primary key default gen_random_uuid(), teacher_id uuid references profiles(id) on delete cascade, title text not null, kind text not null, starts_at timestamptz not null, ends_at timestamptz not null, repeat_rule text, reminder_minutes int default 30, notes text);
+create table if not exists lesson_reports (id uuid primary key default gen_random_uuid(), lesson_id uuid unique references lessons(id) on delete cascade, taught_text text, review_text text, homework_text text, next_lesson_text text, private_notes text, student_rating int check(student_rating between 1 and 5), created_at timestamptz not null default now());
+create table if not exists lesson_report_items (id uuid primary key default gen_random_uuid(), report_id uuid references lesson_reports(id) on delete cascade, subject_id uuid references subjects(id), content text not null);
+create table if not exists quran_progress (id uuid primary key default gen_random_uuid(), student_id uuid references students(id) on delete cascade, surah_number int not null, from_ayah int, to_ayah int, type text not null check(type in ('memorization','revision')), completed_at date, mastery int check(mastery between 1 and 5), notes text);
+create table if not exists exams (id uuid primary key default gen_random_uuid(), student_id uuid references students(id) on delete cascade, title text not null, type text not null, scheduled_at timestamptz, score numeric(5,2), notes text, status text default 'planned');
+create table if not exists homework (id uuid primary key default gen_random_uuid(), student_id uuid references students(id) on delete cascade, lesson_id uuid references lessons(id) on delete set null, title text not null, due_at timestamptz, completed_at timestamptz, notes text);
+create table if not exists payments (id uuid primary key default gen_random_uuid(), student_id uuid references students(id) on delete cascade, month date not null, amount_due numeric(10,2) default 0, amount_paid numeric(10,2) default 0, paid_at date, notes text);
+
+create index if not exists lessons_teacher_time_idx on lessons(teacher_id, starts_at, ends_at);
+create index if not exists lessons_student_time_idx on lessons(student_id, starts_at);
+create index if not exists reports_lesson_idx on lesson_reports(lesson_id);
+create index if not exists quran_student_idx on quran_progress(student_id, surah_number);
+
+-- Prevent overlapping student/teacher lessons at the database level in production with an exclusion constraint using tstzrange.
