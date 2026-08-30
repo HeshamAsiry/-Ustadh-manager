@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./mobile-responsive.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Ustadh Manager", description: "إدارة التدريس والطلاب والقرآن والوقت" };
