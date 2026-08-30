@@ -1,56 +1,8 @@
 "use client";
 import { FormEvent, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { GraduationCap, Mail, Lock, UserRound, ArrowLeft } from "lucide-react";
 
-export default function LoginPage() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true); setError(""); setMessage("");
-    if (!supabase) { setError("Supabase is not configured"); setLoading(false); return; }
-
-    if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name, locale: "ar", timezone: "Africa/Cairo" } } });
-      if (error) { setError(error.message); setLoading(false); return; }
-      if (data.user && data.session) {
-        const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name || email.split("@")[0], locale: "ar", timezone: "Africa/Cairo" });
-        if (profile.error) { setError(profile.error.message); setLoading(false); return; }
-        window.location.replace("/");
-      } else {
-        setMessage("تم إنشاء الحساب. افتح رسالة تأكيد البريد إن كانت مفعّلة، ثم سجّل الدخول.");
-        setMode("login"); setLoading(false);
-      }
-      return;
-    }
-
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message); setLoading(false); return; }
-    if (!data.user) { setError("تعذر إنشاء جلسة تسجيل الدخول"); setLoading(false); return; }
-
-    const profile = await supabase.from("profiles").upsert({ id: data.user.id, full_name: name || email.split("@")[0], locale: "ar", timezone: "Africa/Cairo" });
-    if (profile.error) { setError(profile.error.message); setLoading(false); return; }
-    window.location.replace("/");
-  }
-
-  return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f6f5f1" }} dir="rtl">
-      <form onSubmit={submit} style={{ width: "100%", maxWidth: 430, display: "grid", gap: 16, background: "white", padding: 32, borderRadius: 24, boxShadow: "0 12px 40px rgba(0,0,0,.08)" }}>
-        <div><h1 style={{ margin: 0 }}>Ustadh Manager</h1><p style={{ marginBottom: 0, color: "#6b7280" }}>{mode === "login" ? "تسجيل الدخول إلى حسابك" : "إنشاء حساب الأستاذ"}</p></div>
-        {mode === "signup" && <input required placeholder="اسم الأستاذ" value={name} onChange={e => setName(e.target.value)} />}
-        <input required type="email" placeholder="البريد الإلكتروني" value={email} onChange={e => setEmail(e.target.value)} />
-        <input required minLength={6} type="password" placeholder="كلمة المرور (6 أحرف على الأقل)" value={password} onChange={e => setPassword(e.target.value)} />
-        {error && <p role="alert" style={{ color: "#b42318", margin: 0 }}>{error}</p>}
-        {message && <p role="status" style={{ color: "#027a48", margin: 0 }}>{message}</p>}
-        <button disabled={loading} type="submit" style={{ padding: "12px 16px", border: 0, borderRadius: 12, background: "#1f2937", color: "white", cursor: loading ? "wait" : "pointer" }}>{loading ? "جارٍ الدخول…" : mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب"}</button>
-        <button type="button" onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setMessage(""); }} style={{ padding: 10, border: 0, background: "transparent", color: "#475467", cursor: "pointer" }}>{mode === "login" ? "ليس لديك حساب؟ إنشاء حساب جديد" : "لديك حساب بالفعل؟ تسجيل الدخول"}</button>
-      </form>
-    </main>
-  );
-}
+export default function LoginPage(){const [mode,setMode]=useState<"login"|"signup">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[name,setName]=useState(""),[loading,setLoading]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState("");
+async function submit(e:FormEvent){e.preventDefault();setLoading(true);setError("");setMessage("");if(!supabase){setError("Supabase is not configured");setLoading(false);return}if(mode==="signup"){const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,locale:"ar",timezone:"Africa/Cairo"}}});if(error){setError(error.message);setLoading(false);return}if(data.user&&data.session){const p=await supabase.from("profiles").upsert({id:data.user.id,full_name:name||email.split("@")[0],locale:"ar",timezone:"Africa/Cairo"});if(p.error){setError(p.error.message);setLoading(false);return}window.location.replace("/")}else{setMessage("تم إنشاء الحساب. افتح رسالة تأكيد البريد إن كانت مفعّلة، ثم سجّل الدخول.");setMode("login");setLoading(false)}return}const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error){setError(error.message);setLoading(false);return}if(!data.user){setError("تعذر إنشاء جلسة تسجيل الدخول");setLoading(false);return}window.location.replace("/")}
+return <main className="login-page" dir="rtl"><div className="login-shell"><section className="login-visual"><div className="login-logo"><GraduationCap size={28}/></div><div className="login-brand">Ustadh Manager<span>إدارة التدريس والطلاب بذكاء وبساطة</span></div><div className="login-quote">كل ما تحتاجه لإدارة طلابك، دروسك، وتقاريرك في مكان واحد.</div><div className="login-features"><span>إدارة الطلاب والحصص</span><span>تنظيم المواعيد والتقويم</span><span>متابعة تقدم الطلاب</span></div></section><section className="login-card"><div className="login-card-head"><div className="mobile-login-logo"><GraduationCap size={23}/></div><div><p className="eyebrow">Ustadh Manager</p><h1>{mode==="login"?"مرحبًا بعودتك":"إنشاء حساب الأستاذ"}</h1><p>{mode==="login"?"سجّل الدخول للمتابعة إلى لوحة التحكم.":"أنشئ حسابك وابدأ بإدارة دروسك."}</p></div></div><form onSubmit={submit} className="login-form">{mode==="signup"&&<label className="login-field"><UserRound size={17}/><input required placeholder="اسم الأستاذ" value={name} onChange={e=>setName(e.target.value)}/></label>}<label className="login-field"><Mail size={17}/><input required type="email" placeholder="البريد الإلكتروني" value={email} onChange={e=>setEmail(e.target.value)}/></label><label className="login-field"><Lock size={17}/><input required minLength={6} type="password" placeholder="كلمة المرور" value={password} onChange={e=>setPassword(e.target.value)}/></label>{error&&<div className="login-error">{error}</div>}{message&&<div className="login-success">{message}</div>}<button disabled={loading} className="login-submit">{loading?"جارٍ الدخول…":mode==="login"?"تسجيل الدخول":"إنشاء الحساب"}<ArrowLeft size={17}/></button></form><button className="login-switch" onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");setMessage("")}}>{mode==="login"?"ليس لديك حساب؟ إنشاء حساب جديد":"لديك حساب بالفعل؟ تسجيل الدخول"}</button></section></div></main>}
