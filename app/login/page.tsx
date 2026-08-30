@@ -34,7 +34,7 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      if (data.session) {
+      if (data.session && data.user) {
         await supabase.from("profiles").upsert({ id: data.user.id, full_name: name || email.split("@")[0], locale: "ar", timezone: "Africa/Cairo" });
         window.location.href = "/";
       } else {
