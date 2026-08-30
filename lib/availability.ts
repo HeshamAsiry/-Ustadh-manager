@@ -2,11 +2,11 @@ import { supabase } from "./supabase";
 
 export async function getAvailability(teacherId:string, from:string, to:string) {
   if (!supabase) throw new Error("Supabase is not configured");
-  const [{data:lessons,error:lerr},{data:events,error:eerr}] = await Promise.all([
-    supabase.from("events").select("id,starts_at,ends_at,status").eq("teacher_id",teacherId).lt("starts_at",to).gt("ends_at",from),
-    supabase.from("personal_events").select("id,starts_at,ends_at").eq("teacher_id",teacherId).lt("starts_at",to).gt("ends_at",from)
+  const [{data:lessons,error:lerr},{data:blocks,error:berr}] = await Promise.all([
+    supabase.from("events").select("id,starts_at,ends_at,status").eq("teacher_id",teacherId).lt("starts_at",to).gt("ends_at",from).neq("status","cancelled"),
+    supabase.from("teacher_blocks").select("id,starts_at,ends_at,block_type").eq("teacher_id",teacherId).lt("starts_at",to).gt("ends_at",from)
   ]);
-  return { blocked:[...(lessons??[]),...(events??[])], error:lerr||eerr };
+  return { blocked:[...(lessons??[]),...(blocks??[])], error:lerr||berr };
 }
 
 export function findFreeSlots(dayStart:Date, dayEnd:Date, durationMinutes:number, blocked:{starts_at:string;ends_at:string}[], stepMinutes=30) {
