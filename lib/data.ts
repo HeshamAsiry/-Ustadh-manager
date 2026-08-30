@@ -1,56 +1,68 @@
 import { supabase } from "./supabase";
 
+function db() {
+  if (!supabase) throw new Error("Supabase is not configured");
+  return supabase;
+}
+
 export async function getStudents() {
-  if (!supabase) return { data: [], error: new Error("Supabase is not configured") };
-  return supabase.from("students").select("*, learning_paths(*, subjects(*), curricula(*))").order("created_at", { ascending: false });
+  return db().from("students").select("*, student_subjects(subject_id, subjects(*)), learning_paths(*)").order("created_at", { ascending: false });
 }
-
 export async function createStudent(input: Record<string, unknown>) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("students").insert(input).select().single();
+  return db().from("students").insert(input).select().single();
 }
-
 export async function updateStudent(id: string, input: Record<string, unknown>) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("students").update(input).eq("id", id).select().single();
+  return db().from("students").update(input).eq("id", id).select().single();
 }
-
 export async function deleteStudent(id: string) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("students").delete().eq("id", id);
+  return db().from("students").delete().eq("id", id);
 }
 
-export async function getLessons(from: string, to: string) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lessons").select("*, students(id,name,country,timezone)").gte("starts_at", from).lt("starts_at", to).order("starts_at");
+export async function getEvents(from: string, to: string) {
+  return db().from("events").select("*, students(id,full_name,country_code,timezone)").gte("starts_at", from).lt("starts_at", to).order("starts_at");
+}
+export async function createEvent(input: Record<string, unknown>) {
+  return db().from("events").insert(input).select("*, students(id,full_name,country_code,timezone)").single();
+}
+export async function updateEvent(id: string, input: Record<string, unknown>) {
+  return db().from("events").update(input).eq("id", id).select().single();
+}
+export async function deleteEvent(id: string) {
+  return db().from("events").delete().eq("id", id);
 }
 
-export async function createLesson(input: Record<string, unknown>) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lessons").insert(input).select("*, students(id,name,country,timezone)").single();
+export async function hasEventConflict(start: string, end: string, excludeId?: string) {
+  let q = db().from("events").select("id,title,starts_at,ends_at,status").lt("starts_at", end).gt("ends_at", start).neq("status", "cancelled");
+  if (excludeId) q = q.neq("id", excludeId);
+  const result = await q;
+  return { ...result, conflict: Boolean(result.data?.length) };
 }
 
-export async function updateLesson(id: string, input: Record<string, unknown>) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lessons").update(input).eq("id", id).select().single();
+export async function getReport(eventId: string) {
+  return db().from("lesson_reports").select("*, lesson_report_items(*, subjects(*)), homework(*)").eq("event_id", eventId).maybeSingle();
 }
-
-export async function deleteLesson(id: string) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lessons").delete().eq("id", id);
-}
-
-export async function getReport(lessonId: string) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lesson_reports").select("*, lesson_report_items(*, subjects(*))").eq("lesson_id", lessonId).maybeSingle();
-}
-
 export async function upsertReport(input: Record<string, unknown>) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lesson_reports").upsert(input, { onConflict: "lesson_id" }).select().single();
+  return db().from("lesson_reports").upsert(input, { onConflict: "event_id" }).select().single();
+}
+export async function deleteReport(id: string) {
+  return db().from("lesson_reports").delete().eq("id", id);
 }
 
-export async function deleteReport(id: string) {
-  if (!supabase) throw new Error("Supabase is not configured");
-  return supabase.from("lesson_reports").delete().eq("id", id);
+export async function getQuranProgress(studentId: string) {
+  return db().from("quran_progress").select("*").eq("student_id", studentId).order("date_recorded", { ascending: false });
+}
+export async function createQuranProgress(input: Record<string, unknown>) {
+  return db().from("quran_progress").insert(input).select().single();
+}
+
+export async function getExams(studentId?: string) {
+  let q = db().from("exams").select("*, students(id,full_name)").order("scheduled_at");
+  if (studentId) q = q.eq("student_id", studentId);
+  return q;
+}
+export async function createExam(input: Record<string, unknown>) {
+  return db().from("exams").insert(input).select().single();
+}
+export async function updateExam(id: string, input: Record<string, unknown>) {
+  return db().from("exams").update(input).eq("id", id).select().single();
 }
