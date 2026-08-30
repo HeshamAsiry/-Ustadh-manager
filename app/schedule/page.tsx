@@ -1,2 +1,3 @@
-import ModulePlaceholder from "../../components/module-placeholder";
-export default function Page(){return <ModulePlaceholder title="جدولي الشخصي" eyebrow="الإدارة" description="وقت التحضير والمراجعة والحفظ والالتزامات الشخصية التي تمنع الحجز."/>}
+import AppShell from "../../components/app-shell";
+import { PersonalSchedule } from "../../components/admin-modules";
+export default function Page(){return <AppShell><PersonalSchedule/></AppShell>}
