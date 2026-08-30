@@ -1,0 +1,5 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+function db(){const u=process.env.NEXT_PUBLIC_SUPABASE_URL,k=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(!u||!k)throw new Error("Supabase environment variables are missing");return createClient(u,k);}
+export async function PATCH(req:Request,{params}:{params:Promise<{id:string}>}){try{const {id}=await params;const body=await req.json();const {data,error}=await db().from("lessons").update(body).eq("id",id).select().single();if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({data});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Server error"},{status:500});}}
+export async function DELETE(_:Request,{params}:{params:Promise<{id:string}>}){try{const {id}=await params;const {error}=await db().from("lessons").delete().eq("id",id);if(error)return NextResponse.json({error:error.message},{status:400});return NextResponse.json({ok:true});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Server error"},{status:500});}}
