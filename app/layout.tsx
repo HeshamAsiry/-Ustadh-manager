@@ -2,10 +2,10 @@ import "./globals.css";
 import "./mobile-responsive.css";
 import type { Metadata } from "next";
 
-const assetBase = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main";
+const assetBase = "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main";
 
 export const metadata: Metadata = {
-  title: "Ustadh Manager",
+  title: "رِواق",
   description: "إدارة التدريس والطلاب والقرآن والوقت",
   icons: {
     icon: `${assetBase}/favicon.png`,
