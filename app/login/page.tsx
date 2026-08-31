@@ -106,24 +106,11 @@ export default function LoginPage() {
     <main className="login-page" dir="rtl">
       <div className="login-shell">
         <section className="login-visual">
-          <div
-            className="login-logo"
-            style={{
-              width: 210,
-              height: 210,
-              borderRadius: 0,
-              background: "transparent",
-              overflow: "visible",
-              display: "block",
-            }}
-          >
+          <div className="login-logo">
             <img src={RIWAQ_LOGO} alt="رِواق" style={logoStyle} />
           </div>
 
-          <div className="login-brand">
-            رِواق
-            <span>إدارة التدريس والطلاب بذكاء وبساطة</span>
-          </div>
+          <div className="login-brand-subtitle">إدارة التدريس والطلاب بذكاء وبساطة</div>
 
           <div className="login-quote">
             كل ما تحتاجه لإدارة طلابك، دروسك، وتقاريرك في مكان واحد.
@@ -138,24 +125,11 @@ export default function LoginPage() {
 
         <section className="login-card">
           <div className="login-card-head">
-            <div
-              className="mobile-login-logo"
-              style={{
-                width: 180,
-                height: 180,
-                margin: "0 auto 22px",
-                padding: 18,
-                background: "#4e6147",
-                borderRadius: 24,
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
+            <div className="mobile-login-logo">
               <img src={RIWAQ_LOGO} alt="رِواق" style={logoStyle} />
             </div>
 
             <div>
-              <p className="eyebrow">رِواق</p>
               <h1>
                 {mode === "login" ? "مرحبًا بعودتك" : "إنشاء حساب الأستاذ"}
               </h1>
