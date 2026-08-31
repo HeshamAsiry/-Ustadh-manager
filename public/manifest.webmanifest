@@ -11,13 +11,13 @@
   "background_color": "#F5F6F2",
   "icons": [
     {
-      "src": "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/app%20icon.png",
+      "src": "/app-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/favicon.png",
+      "src": "/favicon.png",
       "sizes": "any",
       "type": "image/png"
     }
