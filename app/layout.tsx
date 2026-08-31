@@ -1,14 +1,12 @@
 import "./globals.css";
 import "./mobile-responsive.css";
+import "./calendar/calendar-overrides.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "رِواق",
   description: "إدارة التدريس والطلاب والقرآن والوقت",
-  icons: {
-    icon: "/favicon.png",
-    apple: "/app-icon.png",
-  },
+  icons: { icon: "/favicon.png", apple: "/app-icon.png" },
   manifest: "/manifest.webmanifest",
 };
 
