@@ -3,7 +3,7 @@ import { FormEvent, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { Mail, Lock, UserRound, ArrowLeft } from "lucide-react";
 
-const RIWAQ_LOGO = "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/Riwaq%20logo%20light.png";
+const RIWAQ_LOGO = "/riwaq-logo-light.png";
 
 export default function LoginPage(){const [mode,setMode]=useState<"login"|"signup">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[name,setName]=useState(""),[loading,setLoading]=useState(false),[message,setMessage]=useState(""),[error,setError]=useState("");
 async function submit(e:FormEvent){e.preventDefault();setLoading(true);setError("");setMessage("");if(!supabase){setError("Supabase is not configured");setLoading(false);return}if(mode==="signup"){const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name,locale:"ar",timezone:"Africa/Cairo"}}});if(error){setError(error.message);setLoading(false);return}if(data.user&&data.session){const p=await supabase.from("profiles").upsert({id:data.user.id,full_name:name||email.split("@")[0],locale:"ar",timezone:"Africa/Cairo"});if(p.error){setError(p.error.message);setLoading(false);return}window.location.replace("/")}else{setMessage("تم إنشاء الحساب. افتح رسالة تأكيد البريد إن كانت مفعّلة، ثم سجّل الدخول.");setMode("login");setLoading(false)}return}const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error){setError(error.message);setLoading(false);return}if(!data.user){setError("تعذر إنشاء جلسة تسجيل الدخول");setLoading(false);return}window.location.replace("/")}
