@@ -6,10 +6,17 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "رِواق",
   description: "إدارة التدريس والطلاب والقرآن والوقت",
-  icons: { icon: "/favicon.png", apple: "/app-icon.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.png", type: "image/png" },
+      { url: "/app-icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.png",
+    apple: "/app-icon.png",
+  },
   manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="ar" dir="rtl"><body>{children}</body></html>;
+  return <html lang="ar" dir="rtl"><head><link rel="icon" href="/favicon.png" type="image/png"/><link rel="shortcut icon" href="/favicon.png" type="image/png"/><link rel="apple-touch-icon" href="/app-icon.png"/></head><body>{children}</body></html>;
 }
