@@ -24,7 +24,7 @@ const groups = [
     { href: "/settings", label: "الإعدادات", icon: Settings },
   ]},
 ];
-const DASHBOARD_LOGO = "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/dashboard%20logo.png";
+const DASHBOARD_LOGO = "/dashboard-logo.png";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
