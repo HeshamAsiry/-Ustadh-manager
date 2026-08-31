@@ -1,0 +1,25 @@
+{
+  "name": "Ustadh Manager",
+  "short_name": "Ustadh Manager",
+  "description": "إدارة التدريس والطلاب والقرآن والوقت",
+  "lang": "ar",
+  "dir": "rtl",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "theme_color": "#66795B",
+  "background_color": "#F5F6F2",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/app%20icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/favicon.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ]
+}
