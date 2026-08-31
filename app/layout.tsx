@@ -2,14 +2,12 @@ import "./globals.css";
 import "./mobile-responsive.css";
 import type { Metadata } from "next";
 
-const assetBase = "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main";
-
 export const metadata: Metadata = {
   title: "رِواق",
   description: "إدارة التدريس والطلاب والقرآن والوقت",
   icons: {
-    icon: `${assetBase}/favicon.png`,
-    apple: `${assetBase}/app%20icon.png`,
+    icon: "/favicon.png",
+    apple: "/app-icon.png",
   },
   manifest: "/manifest.webmanifest",
 };
