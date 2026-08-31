@@ -1,6 +1,6 @@
 {
-  "name": "Ustadh Manager",
-  "short_name": "Ustadh Manager",
+  "name": "رِواق",
+  "short_name": "رِواق",
   "description": "إدارة التدريس والطلاب والقرآن والوقت",
   "lang": "ar",
   "dir": "rtl",
@@ -11,13 +11,13 @@
   "background_color": "#F5F6F2",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/app%20icon.png",
+      "src": "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/app%20icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/favicon.png",
+      "src": "https://media.githubusercontent.com/media/HeshamAsiry/-Ustadh-manager/main/favicon.png",
       "sizes": "any",
       "type": "image/png"
     }
