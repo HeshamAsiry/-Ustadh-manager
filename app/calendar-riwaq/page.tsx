@@ -16,13 +16,28 @@ const localZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const duration = (e: Event) => Math.max(1, Math.round((new Date(e.ends_at).getTime() - new Date(e.starts_at).getTime()) / 60000));
 
-function weekRange() {
-  const from = new Date();
-  from.setHours(0, 0, 0, 0);
-  from.setDate(from.getDate() - from.getDay());
-  const to = new Date(from);
-  to.setDate(to.getDate() + 7);
-  return { from, to };
+function datePartsInZone(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  return {
+    year: Number(parts.find((p) => p.type === "year")?.value),
+    month: Number(parts.find((p) => p.type === "month")?.value),
+    day: Number(parts.find((p) => p.type === "day")?.value),
+  };
+}
+
+function weekRange(timeZone: string) {
+  const now = new Date();
+  const { year, month, day } = datePartsInZone(now, timeZone);
+  const localNoon = new Date(year, month - 1, day, 12, 0, 0);
+  localNoon.setDate(localNoon.getDate() - localNoon.getDay());
+  const fromDate = `${localNoon.getFullYear()}-${String(localNoon.getMonth() + 1).padStart(2, "0")}-${String(localNoon.getDate()).padStart(2, "0")}`;
+  const toLocal = new Date(localNoon);
+  toLocal.setDate(toLocal.getDate() + 7);
+  const toDate = `${toLocal.getFullYear()}-${String(toLocal.getMonth() + 1).padStart(2, "0")}-${String(toLocal.getDate()).padStart(2, "0")}`;
+  return {
+    from: zonedDateTimeToUtc(fromDate, "00:00", timeZone),
+    to: zonedDateTimeToUtc(toDate, "00:00", timeZone),
+  };
 }
 
 export default function RiwaqCalendarPage() {
@@ -39,21 +54,24 @@ export default function RiwaqCalendarPage() {
     setLoading(true);
     setError("");
     try {
+      const profileResult = await getProfile();
+      if (profileResult.error) throw new Error(profileResult.error.message);
+      const profile = profileResult.data as any;
+      const zone = profile?.timezone || localZone();
+      setTeacherZone(zone);
+      setTeacherCountry(profile?.country || profile?.country_code || "");
+
       const sync = await syncRecurringSchedules(90);
       if (sync.error) throw new Error(sync.error.message);
-      const { from, to } = weekRange();
-      const [studentResult, eventResult, profileResult] = await Promise.all([
+      const { from, to } = weekRange(zone);
+      const [studentResult, eventResult] = await Promise.all([
         getStudents("active"),
         getEvents(from.toISOString(), to.toISOString()),
-        getProfile(),
       ]);
       if (studentResult.error) throw new Error(studentResult.error.message);
       if (eventResult.error) throw new Error(eventResult.error.message);
       setStudents((studentResult.data || []) as Student[]);
       setEvents((eventResult.data || []) as Event[]);
-      const profile = profileResult.data as any;
-      setTeacherZone(profile?.timezone || localZone());
-      setTeacherCountry(profile?.country || profile?.country_code || "");
     } catch (e) {
       setError(e instanceof Error ? e.message : "تعذر تحميل التقويم");
     } finally {
