@@ -1,6 +1,7 @@
 import "./globals.css";
 import "./mobile-responsive.css";
 import "./calendar/calendar-overrides.css";
+import "./teacher-core-upgrades.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
