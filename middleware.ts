@@ -35,7 +35,9 @@ export async function middleware(request: NextRequest) {
   if (user && pathname === "/calendar") {
     const target = new URL("/calendar-riwaq", request.url);
     target.search = request.nextUrl.search;
-    return NextResponse.rewrite(target, { request });
+    const rewrite = NextResponse.rewrite(target, { request });
+    response.cookies.getAll().forEach((cookie) => rewrite.cookies.set(cookie));
+    return rewrite;
   }
 
   return response;
