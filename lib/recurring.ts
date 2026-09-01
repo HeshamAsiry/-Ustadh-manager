@@ -81,7 +81,10 @@ export async function syncRecurringSchedules(days = 90) {
 
   if (!inserts.length) return { data: [], error: null };
 
-  // We already de-duplicate against existing events, so upsert is unnecessary.
-  // The events table intentionally has no UNIQUE constraint on these columns.
-  return database.from("events").insert(inserts).select();
+  // The database has a unique constraint on (recurring_schedule_id, starts_at).
+  // Use upsert so concurrent syncs and repeated syncs remain safe.
+  return database
+    .from("events")
+    .upsert(inserts, { onConflict: "recurring_schedule_id,starts_at", ignoreDuplicates: true })
+    .select();
 }
