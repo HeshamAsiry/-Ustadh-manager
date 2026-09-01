@@ -1,4 +1,4 @@
-/* Riwaq teacher-core polish: clearer, calmer, beginner-friendly UI */
+/* Teacher core polish: clearer, calmer, beginner-friendly UI */
 .page-actions h2{letter-spacing:-.2px}
 .search-card{border-radius:18px;box-shadow:0 5px 20px rgba(25,45,28,.035)}
 .student-card{transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
