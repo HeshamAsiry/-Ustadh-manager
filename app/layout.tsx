@@ -6,7 +6,7 @@ import "./students/students-visual.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "رِواق",
+  title: "رِواق | إدارة التدريس والطلاب",
   description: "إدارة التدريس والطلاب والقرآن والوقت",
   icons: {
     icon: [
@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
-export default function RootLayout({children}:{children:React.ReactNode}){
-  return <html lang="ar" dir="rtl"><head><link rel="icon" href="/favicon.png" type="image/png"/><link rel="shortcut icon" href="/favicon.png" type="image/png"/><link rel="apple-touch-icon" href="/app-icon.png"/></head><body>{children}</body></html>;
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ar" dir="rtl">
+      <head>
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link rel="shortcut icon" href="/favicon.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/app-icon.png" />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
 }
