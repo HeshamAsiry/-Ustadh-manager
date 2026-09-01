@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Globe2, X } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import AppShell from "../../components/app-shell";
 import RiwaqWeeklyTimetable, { RiwaqEvent, RiwaqStudent } from "../../components/riwaq-weekly-timetable";
 import { createEvent, deleteEvent, getEvents, getProfile, getStudents, hasEventConflict, updateEvent } from "../../lib/data";
@@ -27,7 +26,6 @@ function weekRange() {
 }
 
 export default function RiwaqCalendarPage() {
-  const params = useSearchParams();
   const [students, setStudents] = useState<Student[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [teacherZone, setTeacherZone] = useState(localZone());
@@ -35,7 +33,7 @@ export default function RiwaqCalendarPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Event | null>(null);
-  const [modalOpen, setModalOpen] = useState(params.get("action") === "new");
+  const [modalOpen, setModalOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -64,6 +62,11 @@ export default function RiwaqCalendarPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const action = new URLSearchParams(window.location.search).get("action");
+    if (action === "new") setModalOpen(true);
+  }, []);
 
   const timetableEvents = useMemo(() => events.filter((event) => event.student_id || event.title), [events]);
   const openAdd = () => { setEditing(null); setError(""); setModalOpen(true); };
