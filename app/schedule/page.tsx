@@ -1,5 +1,5 @@
 import AppShell from "../../components/app-shell";
-import PersonalScheduleV2 from "../../components/personal-schedule-v2";
+import PersonalScheduleV3 from "../../components/personal-schedule-v3";
 import RepeatDaysReset from "../../components/repeat-days-reset";
 
 const styles = `
@@ -8,4 +8,4 @@ const styles = `
 @media(max-width:480px){.view-switch{gap:8px}.segmented button,.today-btn{padding:7px 9px;font-size:10px}.stats-row{gap:8px}.stat-card{padding:12px}.stat-card span{font-size:10px}.stat-card b{font-size:16px}.timeline-item{grid-template-columns:49px 28px 1fr}.timeline:before{right:61px}.timeline-time b{font-size:10px}.timeline-time span{font-size:9px}.day-bar{padding:10px}.day-bar .outline-btn{padding:7px 8px}.activity-modal .form-grid{grid-template-columns:1fr}.personal-v2 .hero{padding:17px}.personal-v2 .hero h2{font-size:21px}.week-grid{grid-template-columns:1fr}.week-day{min-height:95px;flex-direction:row;align-items:center}.week-day small{margin-top:0;margin-right:auto}.week-day div{margin-right:auto}}
 `;
 
-export default function Page(){ return <AppShell><style>{styles}</style><RepeatDaysReset/><PersonalScheduleV2/></AppShell> }
+export default function Page(){ return <AppShell><style>{styles}</style><RepeatDaysReset/><PersonalScheduleV3/></AppShell> }
