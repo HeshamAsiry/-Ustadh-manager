@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
     cookies: {
       getAll() { return request.cookies.getAll(); },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
@@ -30,6 +30,12 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname === "/login") {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (user && pathname === "/calendar") {
+    const target = new URL("/calendar-riwaq", request.url);
+    target.search = request.nextUrl.search;
+    return NextResponse.rewrite(target, { request });
   }
 
   return response;
