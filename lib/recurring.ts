@@ -13,33 +13,28 @@ export async function createRecurringSchedule(input: RecurringInput) {
   return database.from("recurring_schedules").insert({ ...input, teacher_id, status: "active" }).select().single();
 }
 
+async function retireFutureEvents(database: any, teacher_id: string, scheduleIds: string[]) {
+  if (!scheduleIds.length) return null;
+  const result = await database.from("events").update({ status: "cancelled" }).eq("teacher_id", teacher_id).in("recurring_schedule_id", scheduleIds).eq("status", "scheduled").gte("starts_at", new Date().toISOString());
+  return result.error || null;
+}
+
 export async function updateRecurringSchedule(id: string, input: Partial<RecurringInput> & { status?: string; ends_on?: string | null }) {
   const teacher_id = await requireTeacherId(); const database = db();
   const { data: current, error } = await database.from("recurring_schedules").select("id,student_id,title,start_time,timezone,status").eq("id", id).eq("teacher_id", teacher_id).maybeSingle();
   if (error) return { data: null, error }; if (!current) return { data: null, error: new Error("لم يتم العثور على التكرار المطلوب.") };
 
-  const retireFutureEvents = async (scheduleIds: string[]) => {
-    if (!scheduleIds.length) return null;
-    const nowIso = new Date().toISOString();
-    const result = await database.from("events").update({ status: "cancelled" }).eq("teacher_id", teacher_id).in("recurring_schedule_id", scheduleIds).eq("status", "scheduled").gte("starts_at", nowIso);
-    return result.error || null;
-  };
-
-  // Multi-day recurrence is represented by sibling schedules in the current schema.
-  // When one is edited, retire all matching siblings and their future generated
-  // events; the caller then recreates exactly the selected weekdays.
-  let siblingIds: string[] = [];
   if (current.status === "active") {
     let q = database.from("recurring_schedules").select("id").eq("teacher_id", teacher_id).eq("status", "active").eq("title", current.title).eq("start_time", current.start_time).eq("timezone", current.timezone);
     q = current.student_id ? q.eq("student_id", current.student_id) : q.is("student_id", null);
     const siblings = await q;
     if (siblings.error) return { data: null, error: siblings.error };
-    siblingIds = (siblings.data || []).map((row: any) => row.id).filter((value: string) => value !== id);
-    const eventError = await retireFutureEvents([id, ...siblingIds]);
+    const ids = (siblings.data || []).map((r: any) => r.id);
+    const eventError = await retireFutureEvents(database, teacher_id, ids);
     if (eventError) return { data: null, error: eventError };
-    if (input.status !== "cancelled" && siblingIds.length) {
-      const cancelResult = await database.from("recurring_schedules").update({ status: "cancelled" }).eq("teacher_id", teacher_id).in("id", siblingIds);
-      if (cancelResult.error) return { data: null, error: cancelResult.error };
+    if (input.status !== "cancelled" && ids.length > 1) {
+      const cancel = await database.from("recurring_schedules").update({ status: "cancelled" }).eq("teacher_id", teacher_id).in("id", ids.filter((x: string) => x !== id));
+      if (cancel.error) return { data: null, error: cancel.error };
     }
   }
   return database.from("recurring_schedules").update(input).eq("id", id).eq("teacher_id", teacher_id).select().single();
@@ -49,12 +44,13 @@ export async function cancelRecurringSchedule(id: string) {
   const teacher_id = await requireTeacherId(); const database = db();
   const { data: current, error } = await database.from("recurring_schedules").select("id,student_id,title,start_time,timezone").eq("id", id).eq("teacher_id", teacher_id).maybeSingle();
   if (error) return { data: null, error }; if (!current) return { data: null, error: new Error("لم يتم العثور على التكرار المطلوب.") };
-  let q = database.from("recurring_schedules").update({ status: "cancelled" }).eq("teacher_id", teacher_id).eq("status", "active").eq("title", current.title).eq("start_time", current.start_time).eq("timezone", current.timezone);
+  let q = database.from("recurring_schedules").select("id").eq("teacher_id", teacher_id).eq("status", "active").eq("title", current.title).eq("start_time", current.start_time).eq("timezone", current.timezone);
   q = current.student_id ? q.eq("student_id", current.student_id) : q.is("student_id", null);
-  const result = await q;
-  if (result.error) return { data: null, error: result.error };
-  const eventResult = await database.from("events").update({ status: "cancelled" }).eq("teacher_id", teacher_id).eq("status", "scheduled").gte("starts_at", new Date().toISOString()).not("recurring_schedule_id", "is", null);
-  if (eventResult.error) return { data: null, error: eventResult.error };
+  const schedules = await q; if (schedules.error) return { data: null, error: schedules.error };
+  const ids = (schedules.data || []).map((r: any) => r.id);
+  const cancel = await database.from("recurring_schedules").update({ status: "cancelled" }).eq("teacher_id", teacher_id).in("id", ids);
+  if (cancel.error) return { data: null, error: cancel.error };
+  const eventError = await retireFutureEvents(database, teacher_id, ids); if (eventError) return { data: null, error: eventError };
   return { data: current, error: null };
 }
 
