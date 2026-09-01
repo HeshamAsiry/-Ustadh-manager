@@ -30,10 +30,14 @@ Revision: ${body.review || "—"}
 Homework: ${body.homework || "—"}
 Next lesson: ${body.nextLesson || "—"}`;
 
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 1200 } }),
+      body: JSON.stringify({
+        model: "gemini-3.5-flash-lite",
+        input: prompt,
+        generation_config: { thinking_level: "minimal" }
+      }),
     });
 
     const data = await response.json();
@@ -45,7 +49,7 @@ Next lesson: ${body.nextLesson || "—"}`;
       return NextResponse.json({ error: googleMessage ? `تعذر ترجمة التقرير: ${googleMessage}` : "تعذر ترجمة التقرير الآن. حاول مرة أخرى." }, { status: 502 });
     }
 
-    const text = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || "").join("").trim();
+    const text = (data?.output_text || data?.output?.filter((x: { type?: string }) => x.type === "text")?.map((x: { text?: string }) => x.text || "").join("") || "").trim();
     if (!text) return NextResponse.json({ error: "لم تُرجع خدمة الترجمة نصًا." }, { status: 502 });
     return NextResponse.json({ text });
   } catch (error) {
