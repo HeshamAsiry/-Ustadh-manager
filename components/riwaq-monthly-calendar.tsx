@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getEvents } from "../lib/data";
 import { zonedDateTimeToUtc } from "../lib/timezone";
+import { countryFlag } from "./student-name";
 import type { RiwaqEvent, RiwaqStudent } from "./riwaq-weekly-timetable";
 import styles from "./riwaq-monthly-calendar.module.css";
 
@@ -11,84 +12,16 @@ const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربع�
 const monthFormatter = new Intl.DateTimeFormat("ar-EG", { month: "long", year: "numeric" });
 const pad = (n: number) => String(n).padStart(2, "0");
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const dateKeyInZone = (d: Date, timeZone: string) => {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
-  return `${p.find(x => x.type === "year")?.value}-${p.find(x => x.type === "month")?.value}-${p.find(x => x.type === "day")?.value}`;
-};
-const localParts = (d: Date, timeZone: string) => {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
-  return { y: Number(p.find(x => x.type === "year")?.value), m: Number(p.find(x => x.type === "month")?.value), day: Number(p.find(x => x.type === "day")?.value) };
-};
-
-function formatTime(value: string, timeZone: string) {
-  return new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true, timeZone }).format(new Date(value));
-}
-
-function monthGrid(cursor: Date, timeZone: string) {
-  const { y, m } = localParts(cursor, timeZone);
-  const first = new Date(y, m - 1, 1, 12);
-  const start = new Date(first);
-  start.setDate(1 - first.getDay());
-  return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
-}
+const dateKeyInZone = (d: Date, timeZone: string) => { const p = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d); return `${p.find(x => x.type === "year")?.value}-${p.find(x => x.type === "month")?.value}-${p.find(x => x.type === "day")?.value}`; };
+const localParts = (d: Date, timeZone: string) => { const p = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d); return { y: Number(p.find(x => x.type === "year")?.value), m: Number(p.find(x => x.type === "month")?.value), day: Number(p.find(x => x.type === "day")?.value) }; };
+function formatTime(value: string, timeZone: string) { return new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", hour12: true, timeZone }).format(new Date(value)); }
+function monthGrid(cursor: Date, timeZone: string) { const { y, m } = localParts(cursor, timeZone); const first = new Date(y, m - 1, 1, 12); const start = new Date(first); start.setDate(1 - first.getDay()); return Array.from({ length: 42 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; }); }
 
 export default function RiwaqMonthlyCalendar({ students, teacherTimeZone, studentFilter, onAdd, onEdit }: { students: RiwaqStudent[]; teacherTimeZone: string; studentFilter: string; onAdd: () => void; onEdit: (event: RiwaqEvent) => void; }) {
-  const [cursor, setCursor] = useState(() => new Date());
-  const [events, setEvents] = useState<RiwaqEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const load = async () => {
-    setLoading(true); setError("");
-    try {
-      const { y, m } = localParts(cursor, teacherTimeZone);
-      const first = new Date(y, m - 1, 1, 12);
-      const gridStart = new Date(first); gridStart.setDate(1 - first.getDay());
-      const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 42);
-      const fromDate = dateKey(gridStart);
-      const toDate = dateKey(gridEnd);
-      const from = zonedDateTimeToUtc(fromDate, "00:00", teacherTimeZone);
-      const to = zonedDateTimeToUtc(toDate, "00:00", teacherTimeZone);
-      const result = await getEvents(from.toISOString(), to.toISOString());
-      if (result.error) throw new Error(result.error.message);
-      setEvents((result.data || []) as RiwaqEvent[]);
-    } catch (e) { setError(e instanceof Error ? e.message : "تعذر تحميل التقويم الشهري"); }
-    finally { setLoading(false); }
-  };
-
+  const [cursor, setCursor] = useState(() => new Date()); const [events, setEvents] = useState<RiwaqEvent[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  const load = async () => { setLoading(true); setError(""); try { const { y, m } = localParts(cursor, teacherTimeZone); const first = new Date(y, m - 1, 1, 12); const gridStart = new Date(first); gridStart.setDate(1 - first.getDay()); const gridEnd = new Date(gridStart); gridEnd.setDate(gridStart.getDate() + 42); const fromDate = dateKey(gridStart); const toDate = dateKey(gridEnd); const from = zonedDateTimeToUtc(fromDate, "00:00", teacherTimeZone); const to = zonedDateTimeToUtc(toDate, "00:00", teacherTimeZone); const result = await getEvents(from.toISOString(), to.toISOString()); if (result.error) throw new Error(result.error.message); setEvents((result.data || []) as RiwaqEvent[]); } catch (e) { setError(e instanceof Error ? e.message : "تعذر تحميل التقويم الشهري"); } finally { setLoading(false); } };
   useEffect(() => { load(); }, [cursor, teacherTimeZone]);
-
-  const filtered = useMemo(() => events.filter(e => studentFilter === "all" || e.student_id === studentFilter), [events, studentFilter]);
-  const grid = useMemo(() => monthGrid(cursor, teacherTimeZone), [cursor, teacherTimeZone]);
-  const currentKey = dateKeyInZone(new Date(), teacherTimeZone);
-  const { y: currentY, m: currentM } = localParts(cursor, teacherTimeZone);
-
-  return <section className={styles.calendar} dir="rtl">
-    <div className={styles.header}>
-      <div className={styles.nav}>
-        <button className={styles.navButton} aria-label="الشهر السابق" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() - 1); return n; })}><ChevronRight size={18} /></button>
-        <button className={styles.title} onClick={() => setCursor(new Date())}>{monthFormatter.format(cursor)}</button>
-        <button className={styles.navButton} aria-label="الشهر التالي" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; })}><ChevronLeft size={18} /></button>
-      </div>
-      <button className={styles.add} onClick={onAdd}><Plus size={15} /> إضافة موعد</button>
-    </div>
-    {error && <p className={styles.error}>{error}</p>}
-    <div className={styles.weekdays}>{DAYS.map(day => <div className={styles.weekday} key={day}>{day}</div>)}</div>
-    <div className={styles.grid}>
-      {grid.map(day => {
-        const key = dateKey(day);
-        const p = localParts(day, teacherTimeZone);
-        const inMonth = p.y === currentY && p.m === currentM;
-        const dayEvents = filtered.filter(e => dateKeyInZone(new Date(e.starts_at), teacherTimeZone) === key).sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at));
-        return <div className={`${styles.day} ${!inMonth ? styles.muted : ""} ${key === currentKey ? styles.today : ""}`} key={key}>
-          <div className={styles.number}>{p.day}</div>
-          <div className={styles.events}>
-            {dayEvents.slice(0, 4).map(event => { const student = students.find(s => s.id === event.student_id); return <button key={event.id} className={`${styles.event} ${styles[`status-${event.status}`] || ""}`} title={`${student?.full_name || event.title} — ${formatTime(event.starts_at, teacherTimeZone)}`} onClick={() => onEdit(event)}><b>{formatTime(event.starts_at, teacherTimeZone)}</b><span>{student?.full_name || event.title}</span></button>; })}
-            {dayEvents.length > 4 && <span className={styles.more}>+{dayEvents.length - 4} مواعيد أخرى</span>}
-          </div>
-        </div>;
-      })}
-    </div>
-    {loading && <div className={styles.loading}>جاري تحديث الشهر…</div>}
-  </section>;
+  const filtered = useMemo(() => events.filter(e => studentFilter === "all" || e.student_id === studentFilter), [events, studentFilter]); const grid = useMemo(() => monthGrid(cursor, teacherTimeZone), [cursor, teacherTimeZone]); const currentKey = dateKeyInZone(new Date(), teacherTimeZone); const { y: currentY, m: currentM } = localParts(cursor, teacherTimeZone);
+  return <section className={styles.calendar} dir="rtl"><div className={styles.header}><div className={styles.nav}><button className={styles.navButton} aria-label="الشهر السابق" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() - 1); return n; })}><ChevronRight size={18} /></button><button className={styles.title} onClick={() => setCursor(new Date())}>{monthFormatter.format(cursor)}</button><button className={styles.navButton} aria-label="الشهر التالي" onClick={() => setCursor(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; })}><ChevronLeft size={18} /></button></div><button className={styles.add} onClick={onAdd}><Plus size={15} /> إضافة موعد</button></div>
+    {error && <p className={styles.error}>{error}</p>}<div className={styles.weekdays}>{DAYS.map(day => <div className={styles.weekday} key={day}>{day}</div>)}</div><div className={styles.grid}>{grid.map(day => { const key = dateKey(day); const p = localParts(day, teacherTimeZone); const inMonth = p.y === currentY && p.m === currentM; const dayEvents = filtered.filter(e => dateKeyInZone(new Date(e.starts_at), teacherTimeZone) === key).sort((a, b) => +new Date(a.starts_at) - +new Date(b.starts_at)); return <div className={`${styles.day} ${!inMonth ? styles.muted : ""} ${key === currentKey ? styles.today : ""}`} key={key}><div className={styles.number}>{p.day}</div><div className={styles.events}>{dayEvents.slice(0, 4).map(event => { const student = students.find(s => s.id === event.student_id); const flag = student ? (countryFlag(student.country_code) || student.countryFlag || "") : ""; return <button key={event.id} className={`${styles.event} ${styles[`status-${event.status}`] || ""}`} title={`${student?.full_name || event.title} — ${formatTime(event.starts_at, teacherTimeZone)}`} onClick={() => onEdit(event)}><b>{formatTime(event.starts_at, teacherTimeZone)}</b><span>{flag} {student?.full_name || event.title}</span></button>; })}{dayEvents.length > 4 && <span className={styles.more}>+{dayEvents.length - 4} مواعيد أخرى</span>}</div></div>; })}</div>{loading && <div className={styles.loading}>جاري تحديث الشهر…</div>}</section>;
 }
