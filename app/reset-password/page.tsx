@@ -25,8 +25,12 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    const client = supabase;
+    let mounted = true;
+
     const checkSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      const { data, error } = await client.auth.getSession();
+      if (!mounted) return;
       if (error || !data.session) {
         setError("رابط إعادة تعيين كلمة المرور غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا من صفحة تسجيل الدخول.");
       } else {
@@ -35,6 +39,19 @@ export default function ResetPasswordPage() {
     };
 
     checkSession();
+
+    const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") && session) {
+        setError("");
+        setReady(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const submit = async (e: FormEvent) => {
@@ -42,7 +59,8 @@ export default function ResetPasswordPage() {
     setError("");
     setMessage("");
 
-    if (!supabase || !ready) return;
+    const client = supabase;
+    if (!client || !ready) return;
     if (password.length < 6) {
       setError("كلمة المرور يجب أن تتكون من 6 أحرف على الأقل.");
       return;
@@ -53,7 +71,7 @@ export default function ResetPasswordPage() {
     }
 
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await client.auth.updateUser({ password });
 
     if (error) {
       setError(error.message);
@@ -81,18 +99,7 @@ export default function ResetPasswordPage() {
             <label htmlFor="new-password">كلمة المرور الجديدة</label>
             <div className="password-row input-icon">
               <LockKeyhole size={17} aria-hidden="true" />
-              <input
-                id="new-password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                dir="ltr"
-                autoComplete="new-password"
-                minLength={6}
-                required
-                disabled={!ready || busy}
-              />
+              <input id="new-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" dir="ltr" autoComplete="new-password" minLength={6} required disabled={!ready || busy} />
               <button type="button" className="password-toggle" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
                 {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
@@ -103,18 +110,7 @@ export default function ResetPasswordPage() {
             <label htmlFor="confirm-password">تأكيد كلمة المرور</label>
             <div className="password-row input-icon">
               <LockKeyhole size={17} aria-hidden="true" />
-              <input
-                id="confirm-password"
-                type={showConfirm ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-                dir="ltr"
-                autoComplete="new-password"
-                minLength={6}
-                required
-                disabled={!ready || busy}
-              />
+              <input id="confirm-password" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" dir="ltr" autoComplete="new-password" minLength={6} required disabled={!ready || busy} />
               <button type="button" className="password-toggle" onClick={() => setShowConfirm((v) => !v)} aria-label={showConfirm ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
                 {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
