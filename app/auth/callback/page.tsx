@@ -9,34 +9,60 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const completeSignIn = async () => {
-      if (!supabase) {
-        setError("لم يتم إعداد الاتصال بالخادم بعد.");
-        return;
-      }
+    if (!supabase) {
+      setError("لم يتم إعداد الاتصال بالخادم بعد.");
+      return;
+    }
 
+    let active = true;
+    const client = supabase;
+
+    const finish = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
 
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setError(error.message);
+        const { error: exchangeError } = await client.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          if (active) setError("تعذر تأكيد تسجيل الدخول مع Google. أعد المحاولة من صفحة تسجيل الدخول.");
           return;
         }
       }
 
-      const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session) {
-        setError("تعذر إكمال تسجيل الدخول. حاول مرة أخرى.");
+      const { data, error: sessionError } = await client.auth.getSession();
+      if (sessionError) {
+        if (active) setError("تعذر قراءة جلسة تسجيل الدخول. أعد المحاولة.");
         return;
       }
 
-      router.replace("/dashboard");
-      router.refresh();
+      if (data.session) {
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      // Wait briefly for Supabase to finish restoring the session from the URL.
+      const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+        if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+          router.replace("/dashboard");
+          router.refresh();
+        }
+      });
+
+      window.setTimeout(async () => {
+        const { data: retry } = await client.auth.getSession();
+        listener.subscription.unsubscribe();
+        if (!retry.session && active) {
+          setError("لم يتم إنشاء جلسة تسجيل الدخول. أعد المحاولة من صفحة تسجيل الدخول.");
+        }
+      }, 1500);
     };
 
-    completeSignIn();
+    finish();
+
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   return (
