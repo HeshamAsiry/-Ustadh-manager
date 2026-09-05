@@ -1,72 +1,54 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!supabase) {
-      setError("لم يتم إعداد الاتصال بالخادم بعد.");
-      return;
-    }
-
     let active = true;
-    const client = supabase;
 
-    const goToDashboard = () => {
+    const finishLogin = async () => {
+      const code = searchParams.get("code");
+      const authError = searchParams.get("error_description") || searchParams.get("error");
+
+      if (authError) {
+        if (active) setError(decodeURIComponent(authError.replace(/\+/g, " ")));
+        return;
+      }
+
+      if (!code) {
+        const { data } = await supabase.auth.getSession();
+        if (active && data.session) {
+          router.replace("/dashboard");
+          router.refresh();
+        } else if (active) {
+          setError("لم يتم العثور على بيانات تسجيل الدخول. أعد المحاولة من Google.");
+        }
+        return;
+      }
+
+      // One explicit PKCE exchange. detectSessionInUrl is disabled in the
+      // Supabase client, so there is no second exchange racing this request.
+      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       if (!active) return;
+
+      if (exchangeError || !data.session) {
+        setError(exchangeError?.message || "تعذر تأكيد جلسة تسجيل الدخول. أعد المحاولة.");
+        return;
+      }
+
       router.replace("/dashboard");
       router.refresh();
     };
 
-    // detectSessionInUrl is enabled in lib/supabase.ts, so Supabase itself
-    // consumes the one-time PKCE code from the OAuth callback URL.
-    // Do not call exchangeCodeForSession here: a PKCE auth code can only be
-    // exchanged once, and doing it manually can race with auto detection.
-    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
-      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
-        goToDashboard();
-      }
-    });
-
-    const checkSession = async () => {
-      const { data, error: sessionError } = await client.auth.getSession();
-      if (!active) return;
-
-      if (sessionError) {
-        setError("تعذر قراءة جلسة تسجيل الدخول. أعد المحاولة.");
-        return;
-      }
-
-      if (data.session) {
-        goToDashboard();
-        return;
-      }
-
-      // Give the automatic URL detection a moment to finish, then check once more.
-      window.setTimeout(async () => {
-        const { data: retry } = await client.auth.getSession();
-        if (!active) return;
-
-        if (retry.session) {
-          goToDashboard();
-        } else {
-          setError("لم يتم إنشاء جلسة تسجيل الدخول. أعد المحاولة من صفحة تسجيل الدخول.");
-        }
-      }, 2000);
-    };
-
-    void checkSession();
-
-    return () => {
-      active = false;
-      listener.subscription.unsubscribe();
-    };
-  }, [router]);
+    void finishLogin();
+    return () => { active = false; };
+  }, [router, searchParams]);
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Arial, sans-serif", direction: "rtl", padding: 24 }}>
