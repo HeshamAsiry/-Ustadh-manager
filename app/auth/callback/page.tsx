@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 export default function AuthCallbackPage() {
-  const router = useRouter();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -23,17 +21,18 @@ export default function AuthCallbackPage() {
 
       if (!code) {
         const { data } = await supabase.auth.getSession();
-        if (active && data.session) {
-          router.replace("/dashboard");
-          router.refresh();
-        } else if (active) {
+        if (!active) return;
+        if (data.session) {
+          window.location.replace("/dashboard");
+        } else {
           setError("لم يتم العثور على بيانات تسجيل الدخول. أعد المحاولة من Google.");
         }
         return;
       }
 
-      // One explicit PKCE exchange. detectSessionInUrl is disabled in the
-      // Supabase client, so there is no second exchange racing this request.
+      // The Supabase client uses PKCE and detectSessionInUrl=false, so this
+      // is the only place where the one-time Google authorization code is
+      // exchanged. We then verify the persisted session before navigating.
       const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       if (!active) return;
 
@@ -42,16 +41,25 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      // Remove the one-time authorization code from the address bar before
-      // navigating so a refresh can never attempt to exchange it again.
+      const { data: verified } = await supabase.auth.getSession();
+      if (!active) return;
+
+      if (!verified.session) {
+        setError("تم تسجيل الدخول مع Google لكن لم يتم حفظ الجلسة. أعد المحاولة.");
+        return;
+      }
+
+      // Remove the single-use code, then perform a hard navigation so the
+      // dashboard starts with the persisted Supabase session already loaded.
       window.history.replaceState({}, document.title, "/auth/callback");
-      router.replace("/dashboard");
-      router.refresh();
+      window.location.replace("/dashboard");
     };
 
     void finishLogin();
-    return () => { active = false; };
-  }, [router]);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Arial, sans-serif", direction: "rtl", padding: 24 }}>
@@ -60,7 +68,7 @@ export default function AuthCallbackPage() {
           <>
             <h1>تعذر تسجيل الدخول</h1>
             <p>{error}</p>
-            <button onClick={() => router.replace("/login")}>العودة إلى تسجيل الدخول</button>
+            <button onClick={() => window.location.replace("/login")}>العودة إلى تسجيل الدخول</button>
           </>
         ) : (
           <>
