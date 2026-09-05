@@ -46,11 +46,20 @@ export default function LoginPage() {
     clearFeedback();
     if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
     setGoogleBusy(true);
+
+    // Browser-only implicit OAuth: Google returns the session tokens in the
+    // URL fragment and Supabase automatically persists them before /dashboard
+    // starts checking the session. This avoids the PKCE callback race that was
+    // sending the first login attempt back to /login.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/dashboard` },
     });
-    if (error) { setError(error.message); setGoogleBusy(false); }
+
+    if (error) {
+      setError(error.message);
+      setGoogleBusy(false);
+    }
   };
 
   const reset = async () => {
