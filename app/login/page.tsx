@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import "../auth.css";
 
+const logoUrl="https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/login%20logo.png";
+const googleLogoUrl="https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/Google_Favicon_2025.svg.webp";
+
 export default function LoginPage(){
   const router=useRouter();
   const [mode,setMode]=useState<"login"|"signup">("login");
@@ -58,13 +61,13 @@ export default function LoginPage(){
 
   return <main className="auth-page"><section className="auth-card">
     <div className="brand">
-      <div className="brand-logo"><img src="/icons/login logo.png" alt="رواق" width={190} height={76} /></div>
+      <div className="brand-logo"><img src={logoUrl} alt="رواق" width={190} height={76} /></div>
       <p>إدارة دروس القرآن واللغة العربية</p>
     </div>
     <div className="tabs"><button type="button" className={`tab ${mode==="login"?"active":""}`} onClick={()=>{setMode("login");setError("");setMessage("")}}>تسجيل الدخول</button><button type="button" className={`tab ${mode==="signup"?"active":""}`} onClick={()=>{setMode("signup");setError("");setMessage("")}}>إنشاء حساب</button></div>
 
     <button type="button" className="google-button" onClick={signInWithGoogle} disabled={googleBusy||busy}>
-      <img className="google-logo" src="/icons/Google_Favicon_2025.svg.webp" alt="Google" width={20} height={20} />
+      <img className="google-logo" src={googleLogoUrl} alt="Google" width={20} height={20} />
       <span>{googleBusy?"جارٍ المتابعة مع Google...":"المتابعة باستخدام Google"}</span>
     </button>
 
