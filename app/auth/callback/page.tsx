@@ -1,23 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
 
     const finishLogin = async () => {
-      const code = searchParams.get("code");
-      const authError = searchParams.get("error_description") || searchParams.get("error");
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const authError = params.get("error_description") || params.get("error");
 
       if (authError) {
-        if (active) setError(decodeURIComponent(authError.replace(/\+/g, " ")));
+        if (active) setError(authError);
         return;
       }
 
@@ -42,13 +42,16 @@ export default function AuthCallbackPage() {
         return;
       }
 
+      // Remove the one-time authorization code from the address bar before
+      // navigating so a refresh can never attempt to exchange it again.
+      window.history.replaceState({}, document.title, "/auth/callback");
       router.replace("/dashboard");
       router.refresh();
     };
 
     void finishLogin();
     return () => { active = false; };
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Arial, sans-serif", direction: "rtl", padding: 24 }}>
