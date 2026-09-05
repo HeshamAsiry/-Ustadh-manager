@@ -1,0 +1,1 @@
+.input-icon{position:relative;display:flex;align-items:center}.input-icon>svg{position:absolute;right:14px;color:#899186;pointer-events:none}.input-icon input{padding-right:42px}.password-row.input-icon>svg{right:14px}.password-row.input-icon input{padding-right:42px;padding-left:46px}.password-toggle{left:8px}.submit:disabled{opacity:.65;cursor:wait;transform:none}
