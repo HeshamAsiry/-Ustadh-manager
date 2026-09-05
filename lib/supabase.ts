@@ -9,11 +9,11 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISH
 
 export const supabase = createClient(url, key, {
   auth: {
-    flowType: "pkce",
-    // The callback page performs the single PKCE code exchange explicitly.
-    // Keeping URL detection off prevents a race/double exchange on the first
-    // Google sign-in attempt.
-    detectSessionInUrl: false,
+    // This is a browser-only Next.js app, so use Supabase's implicit flow.
+    // Supabase automatically reads the access/refresh tokens returned in
+    // the URL fragment and persists the session in localStorage.
+    flowType: "implicit",
+    detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
   },
