@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Image from "next/image";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
@@ -59,13 +58,13 @@ export default function LoginPage(){
 
   return <main className="auth-page"><section className="auth-card">
     <div className="brand">
-      <div className="brand-logo"><Image src="/icons/login%20logo.png" alt="رواق" width={190} height={76} priority /></div>
+      <div className="brand-logo"><img src="/icons/login logo.png" alt="رواق" width={190} height={76} /></div>
       <p>إدارة دروس القرآن واللغة العربية</p>
     </div>
     <div className="tabs"><button type="button" className={`tab ${mode==="login"?"active":""}`} onClick={()=>{setMode("login");setError("");setMessage("")}}>تسجيل الدخول</button><button type="button" className={`tab ${mode==="signup"?"active":""}`} onClick={()=>{setMode("signup");setError("");setMessage("")}}>إنشاء حساب</button></div>
 
     <button type="button" className="google-button" onClick={signInWithGoogle} disabled={googleBusy||busy}>
-      <Image className="google-logo" src="/icons/Google_Favicon_2025.svg.webp" alt="Google" width={20} height={20} />
+      <img className="google-logo" src="/icons/Google_Favicon_2025.svg.webp" alt="Google" width={20} height={20} />
       <span>{googleBusy?"جارٍ المتابعة مع Google...":"المتابعة باستخدام Google"}</span>
     </button>
 
