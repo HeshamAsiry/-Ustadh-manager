@@ -1,0 +1,94 @@
+/* Riwaq typography hierarchy — readable, clear and slightly more expressive */
+:root{
+  --rq-ink:#27352d;
+  --rq-ink-soft:#526159;
+  --rq-olive-deep:#3f5748;
+  --rq-olive:#526a58;
+  --rq-sand:#8b7445;
+  --rq-red:#955f56;
+}
+
+html,body{
+  font-family:"Tajawal","Noto Sans Arabic","Noto Sans","Tahoma",Arial,sans-serif!important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* Page titles */
+h1{font-size:30px!important;line-height:1.3!important;font-weight:800!important;letter-spacing:-.5px!important;color:var(--rq-ink)!important}
+h2{font-size:21px!important;line-height:1.4!important;font-weight:800!important;letter-spacing:-.25px!important;color:var(--rq-ink)!important}
+h3{font-size:17px!important;line-height:1.5!important;font-weight:750!important;color:var(--rq-ink)!important}
+
+.topbar h1,.students-topbar h1,.calendar-header h1{font-size:31px!important;font-weight:850!important}
+.section-heading h2,.panel-head h2{font-size:19px!important;font-weight:850!important}
+
+/* Students — names are primary information */
+.student-row .student-name,
+.student-row h3,
+.student-card .student-name,
+.student-card h3,
+.student-modal h2,
+.detail-card h2{
+  font-size:19px!important;
+  line-height:1.45!important;
+  font-weight:850!important;
+  color:var(--rq-ink)!important;
+}
+.student-row .student-name,.student-card .student-name{color:var(--rq-olive-deep)!important}
+.student-row .student-meta,.student-card .student-meta{font-size:12px!important;color:var(--rq-ink-soft)!important}
+
+/* Lessons and calendar — time + student should dominate */
+.next-time strong{font-size:29px!important;font-weight:900!important;color:var(--rq-ink)!important}
+.next-info h3{font-size:18px!important;font-weight:850!important}
+.next-info p{font-size:12px!important}
+.schedule-time strong{font-size:19px!important;font-weight:900!important;color:var(--rq-olive-deep)!important}
+.schedule-main h3{font-size:17px!important;font-weight:850!important;color:var(--rq-ink)!important}
+.schedule-main span,.schedule-main p{font-size:11px!important}
+.lesson-badge,.status-pill{font-size:10px!important;font-weight:850!important}
+.appointment-card strong,.appointment-card h3{font-size:15px!important;font-weight:850!important}
+.appointment-card .time{font-size:13px!important;font-weight:900!important;color:var(--rq-olive-deep)!important}
+.day-heading strong,.day-heading h3{font-size:16px!important;font-weight:850!important}
+.month-day-number{font-size:15px!important;font-weight:850!important}
+.month-items>span{font-size:10px!important}
+
+/* Dashboard metrics */
+.stat-card strong{font-size:24px!important;font-weight:900!important}
+.stat-card div>span{font-size:11px!important}
+.month-head h3{font-size:20px!important;font-weight:850!important}
+.month-stats strong{font-size:23px!important;font-weight:900!important}
+.quick-card strong{font-size:14px!important;font-weight:850!important}
+.quick-card small{font-size:10px!important}
+
+/* Tables, statements and reports */
+.table-head{font-size:12px!important;font-weight:850!important}
+.table-cell,.statement-table{font-size:13px!important}
+
+/* Forms: labels are clearer without competing with entered values */
+.field label,.form-grid label,.full-field label,.modal-grid label,.timezone-controls label{
+  font-size:12px!important;font-weight:800!important;color:#627067!important
+}
+.field input,.form-grid input,.form-grid select,.full-field input,.modal-grid input,.modal-grid select{
+  font-size:14px!important;color:var(--rq-ink)!important
+}
+
+/* Buttons and status accents */
+.primary-button,.secondary-button,.add-appointment,.danger-button,.submit{font-size:12px!important;font-weight:850!important}
+.status-badge.pending,.warning-badge{background:#f7f0df!important;color:var(--rq-sand)!important}
+.status-badge.cancelled,.danger-badge{background:#f8e9e6!important;color:var(--rq-red)!important}
+.status-badge.completed,.success-badge{background:#e8f1e6!important;color:#4e6b50!important}
+.info-badge,.neutral-badge{background:#edf1f3!important;color:#5f6d78!important}
+
+@media(max-width:1050px){
+  h1,.topbar h1,.students-topbar h1,.calendar-header h1{font-size:27px!important}
+  h2{font-size:20px!important}
+  .student-row .student-name,.student-row h3,.student-card .student-name,.student-card h3{font-size:18px!important}
+}
+@media(max-width:720px){
+  h1,.topbar h1,.students-topbar h1,.calendar-header h1{font-size:24px!important}
+  h2{font-size:18px!important}
+  h3{font-size:16px!important}
+  .student-row .student-name,.student-row h3,.student-card .student-name,.student-card h3{font-size:17px!important}
+  .next-time strong{font-size:25px!important}
+  .schedule-main h3{font-size:15px!important}
+  .schedule-time strong{font-size:17px!important}
+}
