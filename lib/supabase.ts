@@ -9,9 +9,10 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISH
 
 export const supabase = createClient(url, key, {
   auth: {
-    // Let Supabase handle the one-time PKCE code automatically after OAuth.
-    // The callback page waits for the resulting session before navigating.
-    flowType: "pkce",
+    // Riwaq is a browser-only client, so use the implicit OAuth flow.
+    // Google returns the session tokens directly to the browser and Supabase
+    // persists them before the dashboard is rendered.
+    flowType: "implicit",
     detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
