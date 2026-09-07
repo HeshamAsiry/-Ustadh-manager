@@ -8,41 +8,72 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let active = true;
-    let redirected = false;
+    let finished = false;
 
-    const redirectToDashboard = () => {
-      if (!active || redirected) return;
-      redirected = true;
+    const finish = () => {
+      if (!active || finished) return;
+      finished = true;
+      // Remove OAuth query parameters before navigating away.
       window.history.replaceState({}, document.title, "/auth/callback");
       window.location.replace("/dashboard");
     };
 
-    // Google uses the browser implicit flow here. Supabase automatically
-    // consumes the tokens from the URL fragment and persists the session.
-    // The reliable signal is the auth state event, not an immediate getSession().
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
-        redirectToDashboard();
-      }
-    });
+    const fail = (message: string) => {
+      if (!active || finished) return;
+      finished = true;
+      setError(message);
+    };
 
-    const timeout = window.setTimeout(async () => {
-      if (!active || redirected) return;
-      const { data } = await supabase.auth.getSession();
-      if (data.session) redirectToDashboard();
-      else setError("لم يتم تأكيد جلسة Google. أعد المحاولة من صفحة تسجيل الدخول.");
-    }, 8000);
+    const run = async () => {
+      // PKCE returns a one-time `code` in the query string. Exchange it exactly
+      // once on the same browser Supabase client that owns the PKCE verifier.
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const oauthError = params.get("error_description") || params.get("error");
+
+      if (oauthError) {
+        fail(`تعذر تسجيل الدخول عبر Google: ${oauthError}`);
+        return;
+      }
+
+      if (!code) {
+        // Covers a direct visit to this page and a session that was already
+        // created before navigation.
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          fail(sessionError.message);
+          return;
+        }
+        if (data.session) finish();
+        else fail("لم يصل رمز تسجيل الدخول من Google. أعد المحاولة من صفحة تسجيل الدخول.");
+        return;
+      }
+
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+      if (exchangeError) {
+        fail(`تعذر تأكيد جلسة Google: ${exchangeError.message}`);
+        return;
+      }
+
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !data.session) {
+        fail("تم تأكيد Google لكن لم يتم إنشاء جلسة التطبيق. أعد المحاولة.");
+        return;
+      }
+
+      finish();
+    };
+
+    void run();
 
     return () => {
       active = false;
-      window.clearTimeout(timeout);
-      listener.subscription.unsubscribe();
     };
   }, []);
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Arial, sans-serif", direction: "rtl", padding: 24 }}>
-      <div style={{ textAlign: "center", maxWidth: 420 }}>
+      <div style={{ textAlign: "center", maxWidth: 460 }}>
         {error ? (
           <>
             <h1>تعذر تسجيل الدخول</h1>
@@ -52,7 +83,7 @@ export default function AuthCallbackPage() {
         ) : (
           <>
             <h1>جارٍ تسجيل الدخول...</h1>
-            <p>لحظات، يتم تأكيد حسابك الآن.</p>
+            <p>يتم تأكيد حساب Google وإنشاء الجلسة، لحظات فقط.</p>
           </>
         )}
       </div>
