@@ -7,6 +7,7 @@ import "../auth.css";
 
 const logoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/login%20logo.png";
 const googleLogoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/Google_Favicon_2025.svg.webp";
+const AUTH_ORIGIN = "https://riwaq-airy5.vercel.app";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -23,12 +24,11 @@ export default function LoginPage() {
 
   const continueWithGoogle = async () => {
     clearFeedback();
-    if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
     setGoogleBusy(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
+        options: { redirectTo: `${AUTH_ORIGIN}/auth/callback` },
       });
       if (error) throw error;
     } catch (err) {
@@ -40,7 +40,6 @@ export default function LoginPage() {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     clearFeedback();
-    if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
     setBusy(true);
     try {
       if (mode === "login") {
@@ -60,9 +59,8 @@ export default function LoginPage() {
 
   const reset = async () => {
     clearFeedback();
-    if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
     if (!email.trim()) { setError("اكتب بريدك الإلكتروني أولًا."); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${AUTH_ORIGIN}/reset-password` });
     if (error) setError(error.message); else setMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.");
   };
 
