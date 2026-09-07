@@ -8,56 +8,35 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let active = true;
+    let redirected = false;
 
-    const finishLogin = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const authError = params.get("error_description") || params.get("error");
-
-      if (authError) {
-        if (active) setError(authError);
-        return;
-      }
-
-      if (!code) {
-        const { data } = await supabase.auth.getSession();
-        if (!active) return;
-        if (data.session) {
-          window.location.replace("/dashboard");
-        } else {
-          setError("لم يتم العثور على بيانات تسجيل الدخول. أعد المحاولة من Google.");
-        }
-        return;
-      }
-
-      // The Supabase client uses PKCE and detectSessionInUrl=false, so this
-      // is the only place where the one-time Google authorization code is
-      // exchanged. We then verify the persisted session before navigating.
-      const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (!active) return;
-
-      if (exchangeError || !data.session) {
-        setError(exchangeError?.message || "تعذر تأكيد جلسة تسجيل الدخول. أعد المحاولة.");
-        return;
-      }
-
-      const { data: verified } = await supabase.auth.getSession();
-      if (!active) return;
-
-      if (!verified.session) {
-        setError("تم تسجيل الدخول مع Google لكن لم يتم حفظ الجلسة. أعد المحاولة.");
-        return;
-      }
-
-      // Remove the single-use code, then perform a hard navigation so the
-      // dashboard starts with the persisted Supabase session already loaded.
+    const redirectToDashboard = () => {
+      if (!active || redirected) return;
+      redirected = true;
       window.history.replaceState({}, document.title, "/auth/callback");
       window.location.replace("/dashboard");
     };
 
-    void finishLogin();
+    // Google uses the browser implicit flow here. Supabase automatically
+    // consumes the tokens from the URL fragment and persists the session.
+    // The reliable signal is the auth state event, not an immediate getSession().
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED")) {
+        redirectToDashboard();
+      }
+    });
+
+    const timeout = window.setTimeout(async () => {
+      if (!active || redirected) return;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) redirectToDashboard();
+      else setError("لم يتم تأكيد جلسة Google. أعد المحاولة من صفحة تسجيل الدخول.");
+    }, 8000);
+
     return () => {
       active = false;
+      window.clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
   }, []);
 
