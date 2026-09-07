@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 const SUPABASE_URL = "https://pnhmfkigcvynhrmvcxam.supabase.co";
@@ -17,18 +16,27 @@ export async function GET(request: Request) {
     );
   }
 
-  const cookieStore = await cookies();
+  const response = NextResponse.redirect(new URL(safeNext, requestUrl.origin));
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISHABLE_KEY;
 
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
-        return cookieStore.getAll();
+        const cookieHeader = request.headers.get("cookie") ?? "";
+        return cookieHeader
+          .split("; ")
+          .filter(Boolean)
+          .map((part) => {
+            const separator = part.indexOf("=");
+            return separator === -1
+              ? { name: part, value: "" }
+              : { name: part.slice(0, separator), value: decodeURIComponent(part.slice(separator + 1)) };
+          });
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+          response.cookies.set(name, value, options);
         });
       },
     },
@@ -42,5 +50,5 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.redirect(new URL(safeNext, requestUrl.origin));
+  return response;
 }
