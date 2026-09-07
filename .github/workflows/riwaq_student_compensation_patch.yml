@@ -1,0 +1,135 @@
+name: Riwaq student compensation patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[riwaq-auto-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch students page
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path('app/students/students-page.tsx')
+          s = p.read_text()
+
+          s = s.replace(
+              '  contact_phone: string | null;\n  monthly_hours: number;',
+              '  contact_phone: string | null;\n  compensation_type: "virtual_currency" | "center";\n  currency_code: string | null;\n  center_name: string | null;\n  monthly_hours: number;',
+              1,
+          )
+          s = s.replace(
+              '  contact_phone: string;\n  monthly_hours: string;',
+              '  contact_phone: string;\n  compensation_type: "virtual_currency" | "center";\n  currency_code: string;\n  center_name: string;\n  monthly_hours: string;',
+              1,
+          )
+          s = s.replace(
+              'const emptySubject = { name_ar: "", name_fr: "", name_en: "" };',
+              '''const emptySubject = { name_ar: "", name_fr: "", name_en: "" };
+const currencies = [
+  ["EUR", "اليورو (€)"], ["USD", "الدولار الأمريكي ($)"], ["GBP", "الجنيه الإسترليني (£)"],
+  ["EGP", "الجنيه المصري (ج.م)"], ["AED", "الدرهم الإماراتي (د.إ)"], ["SAR", "الريال السعودي (ر.س)"],
+  ["QAR", "الريال القطري (ر.ق)"], ["KWD", "الدينار الكويتي (د.ك)"], ["CAD", "الدولار الكندي (C$)"],
+  ["AUD", "الدولار الأسترالي (A$)"], ["CHF", "الفرنك السويسري (CHF)"], ["MAD", "الدرهم المغربي (د.م)"],
+  ["TRY", "الليرة التركية (₺)"],
+] as const;''',
+              1,
+          )
+          s = s.replace(
+              '  contact_phone: "",\n  monthly_hours: "8",',
+              '  contact_phone: "",\n  compensation_type: "virtual_currency",\n  currency_code: "EUR",\n  center_name: "",\n  monthly_hours: "8",',
+              1,
+          )
+          s = s.replace(
+              '      contact_phone: s.contact_phone || "",\n      monthly_hours: String(s.monthly_hours ?? 0),',
+              '      contact_phone: s.contact_phone || "",\n      compensation_type: s.compensation_type || "virtual_currency",\n      currency_code: s.currency_code || "EUR",\n      center_name: s.center_name || "",\n      monthly_hours: String(s.monthly_hours ?? 0),',
+              1,
+          )
+          old_validation = '''      !form.country_code ||
+      form.country_code === "IL" ||
+      !form.timezone ||
+      !form.monthly_hours ||
+      !form.subject_ids.length
+    ) {
+      setMessage("البيانات المطلوبة: الاسم، العمر، الدولة، الساعات الشهرية، ومادة واحدة على الأقل.");'''
+          new_validation = '''      !form.country_code ||
+      form.country_code === "IL" ||
+      !form.timezone ||
+      !form.monthly_hours ||
+      !form.subject_ids.length ||
+      (form.compensation_type === "virtual_currency" && !form.currency_code) ||
+      (form.compensation_type === "center" && !form.center_name.trim())
+    ) {
+      setMessage("البيانات المطلوبة: الاسم، العمر، الدولة، الساعات الشهرية، مادة واحدة على الأقل، وتحديد طريقة التعامل.");'''
+          if old_validation not in s:
+              raise SystemExit('validation anchor not found')
+          s = s.replace(old_validation, new_validation, 1)
+          s = s.replace(
+              '      contact_phone: form.contact_phone.trim() || null,\n      monthly_hours: Number(form.monthly_hours),',
+              '      contact_phone: form.contact_phone.trim() || null,\n      compensation_type: form.compensation_type,\n      currency_code: form.compensation_type === "virtual_currency" ? form.currency_code : null,\n      center_name: form.compensation_type === "center" ? form.center_name.trim() : null,\n      monthly_hours: Number(form.monthly_hours),',
+              1,
+          )
+          s = s.replace(
+              '                <label>اسم ولي الأمر<input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></label>\n',
+              '',
+              1,
+          )
+          anchor = '''                <label>الساعات الشهرية <em>*</em><input required type="number" min="0.5" step="0.5" value={form.monthly_hours} onChange={(e) => setForm({ ...form, monthly_hours: e.target.value })} /></label>
+'''
+          insert = anchor + '''                <div className="compensation-field">
+                  <div className="compensation-label">طريقة التعامل <em>*</em></div>
+                  <div className="compensation-options">
+                    <button type="button" className={form.compensation_type === "virtual_currency" ? "active" : ""} onClick={() => setForm({ ...form, compensation_type: "virtual_currency", center_name: "" })}>
+                      <strong>عملة افتراضية</strong><small>تسجيل العملة التي يتعامل بها الطالب</small>
+                    </button>
+                    <button type="button" className={form.compensation_type === "center" ? "active" : ""} onClick={() => setForm({ ...form, compensation_type: "center", currency_code: "" })}>
+                      <strong>تابع لمركز</strong><small>الطالب تابع لمركز تتعامل معه</small>
+                    </button>
+                  </div>
+                  {form.compensation_type === "virtual_currency" ? (
+                    <label className="compensation-dependent">العملة الافتراضية <em>*</em>
+                      <select value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value })}>
+                        <option value="">اختر العملة</option>
+                        {currencies.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <label className="compensation-dependent">اسم المركز <em>*</em>
+                      <input value={form.center_name} onChange={(e) => setForm({ ...form, center_name: e.target.value })} placeholder="مثال: مركز النور" />
+                    </label>
+                  )}
+                </div>
+'''
+          if anchor not in s:
+              raise SystemExit('monthly-hours anchor not found')
+          s = s.replace(anchor, insert, 1)
+          p.write_text(s)
+
+          css = Path('app/students/students-overrides.css')
+          c = css.read_text()
+          marker = '/* Modern country shortcut picker: only countries that currently have students */'
+          styles = '''/* Student compensation / center choice */
+.compensation-field{grid-column:1/-1;border:1px solid #e2e8de;border-radius:14px;background:#fafcf9;padding:15px}.compensation-label{font-size:13px;font-weight:800;color:#3b4639;margin-bottom:10px}.compensation-label em,.compensation-dependent em{font-style:normal;color:#8e665e;margin-right:3px}.compensation-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.compensation-options button{min-height:70px;border:1px solid #dce4d8;border-radius:12px;background:#fff;padding:11px 14px;text-align:right;cursor:pointer;color:#4c584b;transition:.16s}.compensation-options button:hover{border-color:#c3d1bd;background:#f7faf5}.compensation-options button.active{border-color:#94aa89;background:#edf4e9;box-shadow:0 0 0 2px rgba(104,123,93,.08)}.compensation-options strong{display:block;font-size:13px}.compensation-options small{display:block;margin-top:5px;font-size:10px;color:#8a9387;line-height:1.5}.compensation-dependent{display:block;margin-top:12px}.compensation-dependent select,.compensation-dependent input{width:100%;height:47px;margin-top:6px;border:1px solid #d8e0d5;border-radius:10px;background:#fff;padding:0 12px;font:inherit;font-size:13px;color:#384337}.compensation-dependent select:focus,.compensation-dependent input:focus{outline:0;border-color:#aebbab;box-shadow:0 0 0 3px rgba(104,123,93,.08)}
+'''
+          if marker in c and '/* Student compensation / center choice */' not in c:
+              c = c.replace(marker, styles + marker, 1)
+          css.write_text(c)
+          PY
+      - name: Commit patched files
+        shell: bash
+        run: |
+          git config user.name 'Riwaq Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/students/students-page.tsx app/students/students-overrides.css
+          git diff --cached --quiet && exit 0
+          git commit -m '[riwaq-auto-patch] Add student compensation source and remove guardian name field'
+          git push
