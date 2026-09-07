@@ -25,9 +25,7 @@ export default function LoginPage() {
     clearFeedback();
     setGoogleBusy(true);
     try {
-      // Browser implicit flow returns the session directly. Keep the final
-      // destination on the same origin so every deployment alias works.
-      const redirectTo = `${window.location.origin}/dashboard`;
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
