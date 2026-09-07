@@ -1,0 +1,117 @@
+/* Riwaq — modal forms: clear titles, softer labels, readable secondary text */
+
+/* All modal/dialog titles */
+.management-modal > header,
+.student-form-modal > header,
+.country-modal > header,
+.subject-create-modal > header {
+  background: #fffdf8 !important;
+  color: #405849 !important;
+  border-bottom: 1px solid #e4e2d8 !important;
+}
+
+.management-modal > header h2,
+.student-form-modal > header h2,
+.country-modal > header h2,
+.subject-create-modal > header h2,
+.management-modal > header h3,
+.student-form-modal > header h3,
+.country-modal > header h3,
+.subject-create-modal > header h3 {
+  color: #405849 !important;
+  font-size: 19px !important;
+  font-weight: 800 !important;
+  line-height: 1.45 !important;
+}
+
+.management-modal > header p,
+.student-form-modal > header p,
+.country-modal > header p,
+.subject-create-modal > header p {
+  color: #718078 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+.management-modal > header > button,
+.student-form-modal > header > button,
+.country-modal > header > button,
+.subject-create-modal > header > button {
+  color: #68756c !important;
+}
+
+/* Form labels */
+.management-form label,
+.student-form-modal form label,
+.student-form-modal .form-grid label,
+.student-form-modal .full-field label,
+.subject-create-modal form label,
+.country-directory-body label,
+.compensation-label,
+.compensation-dependent label {
+  color: #66736a !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  line-height: 1.55 !important;
+}
+
+/* Form values and controls */
+.management-form input,
+.management-form select,
+.management-form textarea,
+.student-form-modal input,
+.student-form-modal select,
+.student-form-modal textarea,
+.subject-create-modal input,
+.subject-create-modal select,
+.subject-create-modal textarea,
+.country-directory-body input,
+.country-directory-body select,
+.country-directory-body textarea {
+  color: #4e5b53 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  background: #fffefa !important;
+}
+
+.management-form input::placeholder,
+.management-form textarea::placeholder,
+.student-form-modal input::placeholder,
+.student-form-modal textarea::placeholder,
+.subject-create-modal input::placeholder,
+.subject-create-modal textarea::placeholder {
+  color: #9aa29c !important;
+  opacity: 1 !important;
+  font-weight: 400 !important;
+}
+
+/* Secondary/helper information */
+.management-form small,
+.student-form-modal small,
+.subject-create-modal small,
+.country-directory-body small,
+.management-modal header p,
+.student-form-modal header p {
+  color: #6d7870 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.6 !important;
+}
+
+/* Section titles inside forms */
+.management-form h3,
+.student-form-modal .form-section h3,
+.subject-create-modal h3 {
+  color: #526a58 !important;
+  font-size: 16px !important;
+  font-weight: 750 !important;
+}
+
+@media (max-width: 720px) {
+  .management-modal > header h2,
+  .student-form-modal > header h2,
+  .country-modal > header h2,
+  .subject-create-modal > header h2 {
+    font-size: 17px !important;
+  }
+}
