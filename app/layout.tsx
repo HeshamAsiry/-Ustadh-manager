@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./reference-theme.css";
 import "./reference-layout.css";
+import "./reference-fidelity.css";
 import AppShell from "../components/app-shell";
 
 export const metadata: Metadata = {
