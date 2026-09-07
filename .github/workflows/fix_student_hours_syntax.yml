@@ -1,0 +1,30 @@
+name: fix-student-hours-syntax
+on: push
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[student-hours-fix]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix center number JSX
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/students/students-page-v2.tsx')
+          s=p.read_text()
+          bad='''{form.compensation_type === "virtual_currency" ? <label className="compensation-dependent">العملة الافتراضية <em>*</em><select value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value })}><option value="">اختر العملة</option>{currencies.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label> : <label className="compensation-dependent">اسم المركز <em>*</em><input value={form.center_name} onChange={(e) => setForm({ ...form, center_name: e.target.value })} placeholder="مثال: مركز النور" /></label>
+    <label className="compensation-dependent">رقم المركز <em>*</em><input name="center_number" value={form.center_number} onChange={(e) => setForm({ ...form, center_number: e.target.value })} placeholder="مثال: 1024" /></label>}'''
+          good='''{form.compensation_type === "virtual_currency" ? <label className="compensation-dependent">العملة الافتراضية <em>*</em><select value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value })}><option value="">اختر العملة</option>{currencies.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label> : <><label className="compensation-dependent">اسم المركز <em>*</em><input value={form.center_name} onChange={(e) => setForm({ ...form, center_name: e.target.value })} placeholder="مثال: مركز النور" /></label><label className="compensation-dependent">رقم المركز <em>*</em><input name="center_number" value={form.center_number} onChange={(e) => setForm({ ...form, center_number: e.target.value })} placeholder="مثال: 1024" /></label></>}'''
+          if bad in s:
+              s=s.replace(bad,good)
+          p.write_text(s)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/students/students-page-v2.tsx
+          git commit -m "fix: repair center number JSX [student-hours-fix]"
+          git rm .github/workflows/fix_student_hours_syntax.yml
+          git commit -m "chore: remove syntax fix workflow [student-hours-fix]"
+          git push
