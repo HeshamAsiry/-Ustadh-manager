@@ -18,44 +18,14 @@ const quickLinks = [
 ];
 
 export default function DashboardPage() {
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
+  // Authentication is enforced by the server-side Next.js middleware.
+  // Keeping an independent client-side redirect here caused a race on the
+  // first Google OAuth navigation, before the browser had hydrated its cookie.
   useEffect(() => {
-    let mounted = true;
-    let redirected = false;
-
-    const goToLogin = () => {
-      if (!mounted || redirected) return;
-      redirected = true;
-      window.location.replace("/login");
-    };
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!mounted || redirected) return;
-      if (session) {
-        setChecking(false);
-        return;
-      }
-      if (event === "INITIAL_SESSION" || event === "SIGNED_OUT") goToLogin();
-    });
-
-    // The client automatically initializes auth. Do not call initialize()
-    // again here: waiting for the auth state event prevents the first-login
-    // redirect race that was causing Google sign-in to require two attempts.
-    const timeout = window.setTimeout(async () => {
-      if (!mounted || redirected) return;
-      const { data, error } = await supabase.auth.getSession();
-      if (!mounted || redirected) return;
-      if (error || !data.session) goToLogin();
-      else setChecking(false);
-    }, 5000);
-
-    return () => {
-      mounted = false;
-      window.clearTimeout(timeout);
-      listener.subscription.unsubscribe();
-    };
+    setChecking(false);
   }, []);
 
   const monthLabel = useMemo(() => "سبتمبر ٢٠٢٦", []);
