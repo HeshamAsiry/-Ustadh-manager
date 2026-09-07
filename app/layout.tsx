@@ -4,6 +4,7 @@ import "./reference-theme.css";
 import "./reference-layout.css";
 import "./reference-fidelity.css";
 import "./riwaq-typography.css";
+import "./riwaq-modal-forms.css";
 import AppShell from "../components/app-shell";
 
 export const metadata: Metadata = {
