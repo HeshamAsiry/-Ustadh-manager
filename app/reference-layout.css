@@ -1,0 +1,67 @@
+:root{--rq-nav-h:78px}
+
+/* Reference shell: navigation is a full-width top bar */
+.dashboard-shell,.app-shell{display:block!important;min-height:100dvh!important;width:100%!important;background:var(--rq-bg,#f5f2e9)!important}
+.sidebar{position:sticky!important;top:0!important;right:auto!important;bottom:auto!important;z-index:40!important;width:100%!important;height:var(--rq-nav-h)!important;min-height:var(--rq-nav-h)!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:24px!important;padding:0 28px!important;border:0!important;border-bottom:1px solid var(--rq-border,#e4e2d8)!important;background:rgba(255,253,248,.96)!important;box-shadow:0 4px 24px rgba(42,53,45,.045)!important;backdrop-filter:blur(14px)!important}
+.sidebar-brand{flex:0 0 auto!important;display:flex!important;align-items:center!important;padding:0!important;border:0!important;gap:10px!important;min-width:148px!important}
+.brand-symbol{width:40px!important;height:40px!important;border-radius:12px!important}
+.main-nav{flex:1 1 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;padding:0!important}
+.main-nav::before{display:none!important}
+.nav-item{width:auto!important;min-width:112px!important;height:44px!important;padding:0 13px!important;justify-content:center!important;border-radius:12px!important;white-space:nowrap!important}
+.nav-item.active::before{right:8px!important;left:8px!important;top:auto!important;bottom:5px!important;width:auto!important;height:3px!important}
+.sidebar-bottom{margin:0!important;padding:0!important;border:0!important;display:flex!important;align-items:center!important;gap:5px!important;flex:0 0 auto!important}
+.sidebar-bottom .nav-item{min-width:96px!important}
+.dashboard-content{width:100%!important;margin:0!important;padding:0!important;min-height:calc(100dvh - var(--rq-nav-h))!important}
+.app-content{width:100%!important;margin:0!important;padding:0!important}
+.app-content>.calendar-shell{min-height:calc(100dvh - var(--rq-nav-h))!important}
+.dashboard-content>.topbar{padding:34px 42px 0!important}
+
+/* Dashboard still contains its own sidebar; make its top bar identical */
+.dashboard-shell>.sidebar{position:sticky!important}
+
+/* Reference-style student cards */
+.students-page{max-width:none!important;padding:34px 42px 52px!important}
+.student-list{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important;padding:18px!important;background:#faf8f2!important}
+.student-row{position:relative!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:0!important;min-height:250px!important;padding:0!important;background:#fffdf8!important;border:1px solid var(--rq-border,#e4e2d8)!important;border-radius:16px!important;overflow:hidden!important;box-shadow:0 7px 22px rgba(42,53,45,.045)!important;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important}
+.student-row:hover{transform:translateY(-2px)!important;background:#fffdf8!important;border-color:#cfd7ca!important;box-shadow:0 14px 30px rgba(42,53,45,.08)!important}
+.student-main{display:flex!important;align-items:center!important;gap:12px!important;padding:17px 17px 15px!important;border-bottom:1px solid #eceae2!important;background:linear-gradient(180deg,#fffefa 0%,#fbfaf5 100%)!important}
+.student-avatar{width:48px!important;height:48px!important;border-radius:14px!important;font-size:15px!important}
+.student-avatar.large{width:48px!important;height:48px!important}
+.student-main h3{font-size:13px!important;margin:0 0 5px!important;color:#2e3931!important}
+.student-main p{font-size:9px!important;color:#8a938b!important}
+.student-row>.student-cell{display:flex!important;flex-direction:column!important;justify-content:center!important;padding:12px 17px 0!important;min-height:50px!important}
+.student-row>.student-cell:nth-child(2),.student-row>.student-cell:nth-child(3){display:flex!important}
+.student-cell span{font-size:8px!important;color:#9aa198!important;margin-bottom:4px!important}
+.student-cell strong{font-size:10px!important;color:#536057!important}
+.student-cell.subjects-cell{padding-bottom:10px!important}
+.mini-subjects{margin-top:6px!important;gap:5px!important;flex-wrap:wrap!important}
+.student-status{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;padding:12px 17px!important;margin-top:auto!important;border-top:1px solid #eceae2!important;background:#faf9f4!important}
+.student-status small{font-size:8px!important;color:#9ba29a!important}
+.student-actions{display:flex!important;gap:5px!important;justify-content:flex-start!important;padding:0!important}
+.student-actions button{width:31px!important;height:31px!important;border-radius:9px!important}
+.students-stats{grid-template-columns:repeat(4,1fr)!important}
+.panel-head{border-bottom:1px solid #eceae2!important}
+
+@media(max-width:1100px){
+  .sidebar{gap:12px!important;padding:0 18px!important}
+  .sidebar-brand{min-width:125px!important}
+  .main-nav{justify-content:flex-start!important;overflow-x:auto!important;scrollbar-width:none!important}
+  .main-nav::-webkit-scrollbar{display:none!important}
+  .nav-item{min-width:94px!important}
+  .sidebar-bottom{display:none!important}
+  .student-list{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+@media(max-width:760px){
+  :root{--rq-nav-h:68px}
+  .sidebar{position:sticky!important;height:auto!important;min-height:68px!important;padding:10px 12px!important;gap:10px!important;flex-wrap:wrap!important}
+  .sidebar-brand{min-width:auto!important;flex:1 0 auto!important}
+  .sidebar-brand strong{font-size:17px!important}
+  .brand-symbol{width:36px!important;height:36px!important}
+  .main-nav{order:3!important;flex:1 1 100%!important;width:100%!important;height:42px!important;overflow-x:auto!important;justify-content:flex-start!important}
+  .nav-item{min-width:max-content!important;height:38px!important;padding:0 14px!important}
+  .dashboard-content>.topbar{padding:22px 15px 0!important}
+  .students-page{padding:20px 15px 40px!important}
+  .students-stats{grid-template-columns:1fr 1fr!important}
+  .student-list{grid-template-columns:1fr!important;padding:12px!important;gap:12px!important}
+  .student-row{min-height:240px!important}
+}
