@@ -25,9 +25,9 @@ export default function LoginPage() {
     clearFeedback();
     setGoogleBusy(true);
     try {
-      // Keep the OAuth callback on the exact same origin that started the flow.
-      // This is important for PKCE because the verifier is stored locally.
-      const redirectTo = `${window.location.origin}/auth/callback`;
+      // Browser implicit flow returns the session directly. Keep the final
+      // destination on the same origin so every deployment alias works.
+      const redirectTo = `${window.location.origin}/dashboard`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
