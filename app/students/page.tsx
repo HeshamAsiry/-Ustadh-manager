@@ -1,5 +1,2 @@
-import StudentsPage from "./students-page-enhanced";
-
-export default function Page() {
-  return <StudentsPage />;
-}
+import StudentsReference from "./students-reference";
+export default function Page(){return <StudentsReference/>}
