@@ -7,7 +7,6 @@ import "../auth.css";
 
 const logoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/login%20logo.png";
 const googleLogoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/Google_Favicon_2025.svg.webp";
-const AUTH_ORIGIN = "https://riwaq-airy5.vercel.app";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -26,9 +25,12 @@ export default function LoginPage() {
     clearFeedback();
     setGoogleBusy(true);
     try {
+      // Keep the OAuth callback on the exact same origin that started the flow.
+      // This is important for PKCE because the verifier is stored locally.
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${AUTH_ORIGIN}/dashboard` },
+        options: { redirectTo },
       });
       if (error) throw error;
     } catch (err) {
@@ -60,7 +62,7 @@ export default function LoginPage() {
   const reset = async () => {
     clearFeedback();
     if (!email.trim()) { setError("اكتب بريدك الإلكتروني أولًا."); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${AUTH_ORIGIN}/reset-password` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
     if (error) setError(error.message); else setMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.");
   };
 
