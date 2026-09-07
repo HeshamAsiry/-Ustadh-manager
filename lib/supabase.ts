@@ -9,11 +9,10 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISH
 
 export const supabase = createClient(url, key, {
   auth: {
-    // The callback page performs the PKCE exchange explicitly.
-    // Disable automatic URL detection so the one-time code cannot be
-    // exchanged twice by the client and the callback page.
+    // Let Supabase handle the one-time PKCE code automatically after OAuth.
+    // The callback page waits for the resulting session before navigating.
     flowType: "pkce",
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
     persistSession: true,
     autoRefreshToken: true,
   },
