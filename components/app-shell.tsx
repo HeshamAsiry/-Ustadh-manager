@@ -7,7 +7,7 @@ import "../app/reference-theme.css";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const standalone = pathname === "/dashboard" || pathname === "/login" || pathname?.startsWith("/auth/");
+  const standalone = pathname === "/login" || pathname?.startsWith("/auth/");
 
   if (standalone) return <>{children}</>;
 
