@@ -25,6 +25,7 @@ type Student = {
   compensation_type: "virtual_currency" | "center";
   currency_code: string | null;
   center_name: string | null;
+  center_number: string | null;
   monthly_hours: number;
   status: "active" | "paused" | "archived";
   notes: string | null;
@@ -56,6 +57,7 @@ type FormState = {
   compensation_type: "virtual_currency" | "center";
   currency_code: string;
   center_name: string;
+  center_number: string;
   monthly_hours: string;
   status: "active" | "paused" | "archived";
   notes: string;
@@ -86,7 +88,7 @@ const emptySubject = { name_ar: "", name_fr: "", name_en: "" };
 const emptyForm: FormState = {
   full_name: "", age: "", country_code: "", timezone: "", native_language: "",
   contact_name: "", contact_email: "", contact_phone: "", compensation_type: "virtual_currency",
-  currency_code: "EUR", center_name: "", monthly_hours: "8", status: "active", notes: "", subject_ids: [],
+  currency_code: "EUR", center_name: "", center_number: "", monthly_hours: "8", status: "active", notes: "", subject_ids: [],
 };
 const statusLabel = { active: "نشط", paused: "متوقف مؤقتًا", archived: "مؤرشف" } as const;
 const initials = (name: string) => name.trim().slice(0, 2) || "ط";
@@ -119,6 +121,13 @@ export default function StudentsPageV2() {
   const [detailLessons, setDetailLessons] = useState<DetailLesson[]>([]);
   const [detailSubjects, setDetailSubjects] = useState<Subject[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [studentHours, setStudentHours] = useState<Record<string, number>>({});
+  const [lessonStudent, setLessonStudent] = useState<Student | null>(null);
+  const [lessonOpen, setLessonOpen] = useState(false);
+  const [lessonSaving, setLessonSaving] = useState(false);
+  const [lessonForm, setLessonForm] = useState({ date: new Date().toISOString().slice(0, 10), time: "", minutes: "60", notes: "" });
+  const [centerReportStudent, setCenterReportStudent] = useState<Student | null>(null);
+  const [centerReportOpen, setCenterReportOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -128,6 +137,24 @@ export default function StudentsPageV2() {
       supabase.from("countries").select("id,code,name_ar,name_en,timezone,teacher_id,is_active").eq("is_active", true),
     ]);
     if (!s.error) setStudents((s.data || []) as Student[]);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const nextMonth = new Date(monthStart);
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    const { data: hourRows } = await supabase
+      .from("events")
+      .select("student_id,starts_at,ends_at")
+      .eq("event_type", "lesson")
+      .eq("status", "completed")
+      .gte("starts_at", monthStart.toISOString())
+      .lt("starts_at", nextMonth.toISOString());
+    const hourMap: Record<string, number> = {};
+    (hourRows || []).forEach((row: any) => {
+      const minutes = Math.max(0, (new Date(row.ends_at).getTime() - new Date(row.starts_at).getTime()) / 60000);
+      hourMap[row.student_id] = (hourMap[row.student_id] || 0) + minutes / 60;
+    });
+    setStudentHours(hourMap);
     if (!sub.error) setSubjects((sub.data || []) as Subject[]);
     if (!c.error) setDbCountries((c.data || []).filter((row: any) => row.code !== "IL") as CountryRow[]);
     if (s.error) setMessage(s.error.message);
@@ -209,6 +236,7 @@ export default function StudentsPageV2() {
       compensation_type: student.compensation_type || "virtual_currency",
       currency_code: student.currency_code || "EUR",
       center_name: student.center_name || "",
+      center_number: student.center_number || "",
       monthly_hours: String(student.monthly_hours ?? 0),
       status: student.status,
       notes: student.notes || "",
@@ -279,6 +307,7 @@ export default function StudentsPageV2() {
       compensation_type: form.compensation_type,
       currency_code: form.compensation_type === "virtual_currency" ? form.currency_code : null,
       center_name: form.compensation_type === "center" ? form.center_name.trim() : null,
+      center_number: form.compensation_type === "center" ? form.center_number.trim() : null,
       monthly_hours: Number(form.monthly_hours), status: form.status, notes: form.notes.trim() || null,
       teacher_id: user.user.id,
     };
@@ -323,6 +352,59 @@ export default function StudentsPageV2() {
   const completed = detailLessons.filter((lesson) => lesson.status === "completed");
   const totalMins = detailLessons.reduce((sum, lesson) => sum + duration(lesson.starts_at, lesson.ends_at), 0);
 
+  const openLessonModal = (student: Student) => {
+    setLessonStudent(student);
+    setLessonForm({ date: new Date().toISOString().slice(0, 10), time: new Date().toTimeString().slice(0, 5), minutes: "60", notes: "" });
+    setLessonOpen(true);
+  };
+
+  const saveRecordedLesson = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!lessonStudent) return;
+    const minutes = Math.max(1, Number(lessonForm.minutes || 0));
+    const startsAt = new Date(`${lessonForm.date}T${lessonForm.time || "00:00"}:00`);
+    const endsAt = new Date(startsAt.getTime() + minutes * 60000);
+    if (Number.isNaN(startsAt.getTime())) { setMessage("اختر تاريخ ووقت الحصة."); return; }
+    setLessonSaving(true);
+    const { data: user } = await supabase.auth.getUser();
+    if (!user.user) { setMessage("انتهت جلسة الدخول."); setLessonSaving(false); return; }
+    const { error } = await supabase.from("events").insert({
+      student_id: lessonStudent.id,
+      teacher_id: user.user.id,
+      event_type: "lesson",
+      title: `حصة — ${lessonStudent.full_name}`,
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      status: "completed",
+      is_makeup: false,
+      reminder_minutes: 0,
+      notes: lessonForm.notes.trim() || null,
+    });
+    if (error) { setMessage(error.message); setLessonSaving(false); return; }
+    const newHours = (studentHours[lessonStudent.id] || 0) + minutes / 60;
+    setStudentHours((current) => ({ ...current, [lessonStudent.id]: newHours }));
+    setLessonOpen(false);
+    setLessonSaving(false);
+    const completed = newHours + 0.001 >= Number(lessonStudent.monthly_hours || 0);
+    if (completed) {
+      setMessage(`تم تسجيل الحصة. ${lessonStudent.full_name} أنهى ساعاته الشهرية المقررة.`);
+      if (lessonStudent.compensation_type === "center") { setCenterReportStudent(lessonStudent); setCenterReportOpen(true); }
+    } else {
+      setMessage(`تم تسجيل ${minutes} دقيقة للطالب ${lessonStudent.full_name}.`);
+    }
+  };
+
+  const centerReportText = centerReportStudent
+    ? `السلام عليكم ورحمة الله وبركاته،\n\nنفيدكم بأن الطالب/ة ${centerReportStudent.full_name} قد أنهى/ت ساعاته/ا الشهرية المقررة لهذا الشهر.\n\nالتاريخ: ${new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", year: "numeric" }).format(new Date())}\nاسم الطالب: ${centerReportStudent.full_name}\nالمركز: ${centerReportStudent.center_name || "—"}\nرقم المركز: ${centerReportStudent.center_number || "—"}\n\nمع خالص التحية.`
+    : "";
+
+  const copyCenterReport = async () => {
+    if (!centerReportText) return;
+    await navigator.clipboard?.writeText(centerReportText);
+    setMessage("تم نسخ تقرير المركز، وهو جاهز للإرسال.");
+  };
+
   return (
     <main className="students-page" dir="rtl">
       <header className="students-topbar">
@@ -350,7 +432,7 @@ export default function StudentsPageV2() {
           <div className="student-cell"><span>الساعات الشهرية</span><strong>{Number(student.monthly_hours).toFixed(1)} ساعة</strong></div>
           <div className="student-cell"><span>المنطقة الزمنية</span><strong>{student.timezone.replace(/^.*\//, "").replaceAll("_", " ")}</strong></div>
           <div className="student-status"><span className={`status-badge ${student.status}`}>{statusLabel[student.status]}</span><small>منذ {formatDate(student.created_at)}</small></div>
-          <div className="student-actions"><button onClick={() => openDetails(student)} aria-label={`فتح ملف ${student.full_name}`}><ChevronLeft size={17} /></button><button onClick={() => openEdit(student)} aria-label={`تعديل ${student.full_name}`}><Pencil size={16} /></button></div>
+          <div className="student-actions"><button type="button" className="record-lesson-button" onClick={() => openLessonModal(student)} title="تسجيل حصة"><Plus size={15} /></button><button onClick={() => openDetails(student)} aria-label={`فتح ملف ${student.full_name}`}><ChevronLeft size={17} /></button><button onClick={() => openEdit(student)} aria-label={`تعديل ${student.full_name}`}><Pencil size={16} /></button></div>
         </article>)}</div>}
       </section>
 
@@ -377,7 +459,8 @@ export default function StudentsPageV2() {
                   <button type="button" className={form.compensation_type === "virtual_currency" ? "active" : ""} onClick={() => setForm({ ...form, compensation_type: "virtual_currency", center_name: "" })}><strong>عملة افتراضية</strong><small>تسجيل العملة التي يتعامل بها الطالب</small></button>
                   <button type="button" className={form.compensation_type === "center" ? "active" : ""} onClick={() => setForm({ ...form, compensation_type: "center", currency_code: "" })}><strong>تابع لمركز</strong><small>الطالب تابع لمركز تتعامل معه</small></button>
                 </div>
-                {form.compensation_type === "virtual_currency" ? <label className="compensation-dependent">العملة الافتراضية <em>*</em><select value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value })}><option value="">اختر العملة</option>{currencies.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label> : <label className="compensation-dependent">اسم المركز <em>*</em><input value={form.center_name} onChange={(e) => setForm({ ...form, center_name: e.target.value })} placeholder="مثال: مركز النور" /></label>}
+                {form.compensation_type === "virtual_currency" ? <label className="compensation-dependent">العملة الافتراضية <em>*</em><select value={form.currency_code} onChange={(e) => setForm({ ...form, currency_code: e.target.value })}><option value="">اختر العملة</option>{currencies.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label> : <label className="compensation-dependent">اسم المركز <em>*</em><input value={form.center_name} onChange={(e) => setForm({ ...form, center_name: e.target.value })} placeholder="مثال: مركز النور" /></label>
+    <label className="compensation-dependent">رقم المركز <em>*</em><input name="center_number" value={form.center_number} onChange={(e) => setForm({ ...form, center_number: e.target.value })} placeholder="مثال: 1024" /></label>}
               </div>
 
               <label>هاتف ولي الأمر<input dir="ltr" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} /></label>
@@ -401,6 +484,9 @@ export default function StudentsPageV2() {
         {detailTab === "lessons" && <div className="detail-content"><div className="mini-stats"><div><strong>{detailLessons.length}</strong><span>إجمالي الحصص</span></div><div><strong>{completed.length}</strong><span>مكتملة</span></div><div><strong>{(totalMins / 60).toFixed(1)}</strong><span>ساعة مسجلة</span></div></div><div className="lesson-list">{detailLessons.length ? detailLessons.map((lesson, index) => <div className="lesson-item" key={`${lesson.starts_at}-${index}`}><div className="lesson-time"><strong>{formatTime(lesson.starts_at)}</strong><span>{formatDate(lesson.starts_at)}</span></div><div className="lesson-body"><h3>{lesson.title}</h3><p>{lesson.lesson_reports?.[0]?.taught_text || lesson.notes || "لا يوجد وصف للحصة بعد."}</p></div><span className={`lesson-status ${lesson.status}`}>{lesson.status === "completed" ? "مكتملة" : lesson.is_makeup ? "تعويضية" : "مجدولة"}</span></div>) : <div className="empty-state compact"><CalendarDays size={28} /><p>لا توجد حصص مسجلة لهذا الطالب حتى الآن.</p></div>}</div></div>}
         {detailTab === "statement" && <div className="statement-wrap"><div className="statement-head"><div><span>رواق · إدارة التعليم</span><h2><span className="student-country-flag">{countryFlag(selected.country_code)}</span>كشف متابعة الطالب</h2><p>كشف تعليمي قابل للمشاركة مع ولي الأمر ولا يتضمن أي مستحقات أو بيانات مالية.</p></div><button className="secondary-button no-print" onClick={() => window.print()}><FileText size={15} /> طباعة / PDF</button></div><div className="statement-student"><div><span>الطالب</span><strong><span className="student-country-flag">{countryFlag(selected.country_code)}</span>{selected.full_name}</strong></div><div><span>الساعات الشهرية</span><strong>{Number(selected.monthly_hours).toFixed(1)} ساعة</strong></div><div><span>الحصص المكتملة</span><strong>{completed.length}</strong></div><div><span>الساعات المسجلة</span><strong>{(totalMins / 60).toFixed(1)} ساعة</strong></div></div><div className="statement-table"><div className="table-row table-head"><span>التاريخ</span><span>الحصة</span><span>المدة</span><span>الإنجاز / التقرير</span></div>{completed.length ? completed.slice(0, 20).map((lesson, index) => <div className="table-row" key={`${lesson.starts_at}-${index}`}><span>{formatDate(lesson.starts_at)}</span><span>{lesson.title}</span><span>{duration(lesson.starts_at, lesson.ends_at)} د</span><span>{lesson.lesson_reports?.[0]?.taught_text || lesson.lesson_reports?.[0]?.review_text || "تمت الحصة بنجاح."}</span></div>) : <div className="statement-empty">لا توجد حصص مكتملة مسجلة حتى الآن.</div>}</div><div className="statement-footer">رواق · تقرير متابعة تعليمي — بدون مستحقات مالية</div></div>}
       </>}</section></div>}
-    </main>
+    
+      {lessonOpen && lessonStudent ? <div className="modal-backdrop"><section className="student-modal lesson-record-modal"><header><div><h2>تسجيل حصة</h2><p>{lessonStudent.full_name}</p></div><button className="close-button" type="button" onClick={() => setLessonOpen(false)}><X size={16} /></button></header><form onSubmit={saveRecordedLesson}><div className="form-grid"><label>التاريخ<input type="date" value={lessonForm.date} onChange={(e) => setLessonForm({ ...lessonForm, date: e.target.value })} required /></label><label>وقت الحصة<input type="time" value={lessonForm.time} onChange={(e) => setLessonForm({ ...lessonForm, time: e.target.value })} required /></label><label>مدة الحصة بالدقائق<input type="number" min="1" value={lessonForm.minutes} onChange={(e) => setLessonForm({ ...lessonForm, minutes: e.target.value })} required /></label><label className="full-field">ملاحظات الحصة<textarea value={lessonForm.notes} onChange={(e) => setLessonForm({ ...lessonForm, notes: e.target.value })} rows={3} /></label></div><footer className="detail-footer"><button type="button" className="secondary-button" onClick={() => setLessonOpen(false)}>إلغاء</button><button className="primary-button" type="submit" disabled={lessonSaving}><Plus size={15} />{lessonSaving ? "جارٍ التسجيل..." : "تسجيل الحصة"}</button></footer></form></section></div> : null}
+      {centerReportOpen && centerReportStudent ? <div className="modal-backdrop"><section className="student-modal center-report-modal"><header><div><h2>تم إنهاء الساعات الشهرية</h2><p>{centerReportStudent.full_name} — {centerReportStudent.center_name || "المركز"}</p></div><button className="close-button" type="button" onClick={() => setCenterReportOpen(false)}><X size={16} /></button></header><div className="center-report-body"><div className="completion-banner"><Check size={18} /><div><strong>الطالب أنهى الساعات المقررة</strong><small>تم الوصول إلى الحد الشهري الكامل.</small></div></div><label className="full-field">رسالة التقرير<textarea readOnly rows={9} value={centerReportText} /></label></div><footer className="detail-footer"><button type="button" className="secondary-button" onClick={() => setCenterReportOpen(false)}>إغلاق</button><button type="button" className="primary-button" onClick={copyCenterReport}><FileText size={15} /> نسخ التقرير وإرساله للمركز</button></footer></section></div> : null}
+</main>
   );
 }
