@@ -6,6 +6,10 @@
   --rq-olive:#526a58;
   --rq-sand:#8b7445;
   --rq-red:#955f56;
+  --rq-form-text:#4e5b53;
+  --rq-form-label:#66736a;
+  --rq-secondary:#6d7870;
+  --rq-placeholder:#9aa29c;
 }
 
 html,body{
@@ -18,7 +22,6 @@ html,body{
 h1{font-size:30px!important;line-height:1.3!important;font-weight:800!important;letter-spacing:-.5px!important;color:var(--rq-ink)!important}
 h2{font-size:21px!important;line-height:1.4!important;font-weight:800!important;letter-spacing:-.25px!important;color:var(--rq-ink)!important}
 h3{font-size:17px!important;line-height:1.5!important;font-weight:750!important;color:var(--rq-ink)!important}
-
 .topbar h1,.students-topbar h1,.calendar-header h1{font-size:31px!important;font-weight:850!important}
 .section-heading h2,.panel-head h2{font-size:19px!important;font-weight:850!important}
 
@@ -35,44 +38,104 @@ h3{font-size:17px!important;line-height:1.5!important;font-weight:750!important;
   color:var(--rq-ink)!important;
 }
 .student-row .student-name,.student-card .student-name{color:var(--rq-olive-deep)!important}
-.student-row .student-meta,.student-card .student-meta{font-size:12px!important;color:var(--rq-ink-soft)!important}
+.student-row .student-meta,.student-card .student-meta{font-size:13px!important;color:var(--rq-secondary)!important;font-weight:500!important}
 
 /* Lessons and calendar — time + student should dominate */
 .next-time strong{font-size:29px!important;font-weight:900!important;color:var(--rq-ink)!important}
 .next-info h3{font-size:18px!important;font-weight:850!important}
-.next-info p{font-size:12px!important}
+.next-info p{font-size:13px!important;color:var(--rq-secondary)!important}
 .schedule-time strong{font-size:19px!important;font-weight:900!important;color:var(--rq-olive-deep)!important}
 .schedule-main h3{font-size:17px!important;font-weight:850!important;color:var(--rq-ink)!important}
-.schedule-main span,.schedule-main p{font-size:11px!important}
-.lesson-badge,.status-pill{font-size:10px!important;font-weight:850!important}
-.appointment-card strong,.appointment-card h3{font-size:15px!important;font-weight:850!important}
-.appointment-card .time{font-size:13px!important;font-weight:900!important;color:var(--rq-olive-deep)!important}
+.schedule-main span,.schedule-main p{font-size:13px!important;color:var(--rq-secondary)!important}
+.lesson-badge,.status-pill{font-size:12px!important;font-weight:750!important}
+.appointment-card strong,.appointment-card h3{font-size:16px!important;font-weight:850!important}
+.appointment-card .time{font-size:14px!important;font-weight:900!important;color:var(--rq-olive-deep)!important}
 .day-heading strong,.day-heading h3{font-size:16px!important;font-weight:850!important}
 .month-day-number{font-size:15px!important;font-weight:850!important}
-.month-items>span{font-size:10px!important}
+.month-items>span{font-size:11px!important}
 
 /* Dashboard metrics */
 .stat-card strong{font-size:24px!important;font-weight:900!important}
-.stat-card div>span{font-size:11px!important}
+.stat-card div>span{font-size:13px!important;color:var(--rq-secondary)!important}
 .month-head h3{font-size:20px!important;font-weight:850!important}
 .month-stats strong{font-size:23px!important;font-weight:900!important}
-.quick-card strong{font-size:14px!important;font-weight:850!important}
-.quick-card small{font-size:10px!important}
+.quick-card strong{font-size:15px!important;font-weight:850!important}
+.quick-card small{font-size:13px!important;color:var(--rq-secondary)!important}
 
 /* Tables, statements and reports */
-.table-head{font-size:12px!important;font-weight:850!important}
-.table-cell,.statement-table{font-size:13px!important}
+.table-head{font-size:13px!important;font-weight:800!important}
+.table-cell,.statement-table{font-size:14px!important;color:var(--rq-form-text)!important}
 
-/* Forms: labels are clearer without competing with entered values */
-.field label,.form-grid label,.full-field label,.modal-grid label,.timezone-controls label{
-  font-size:12px!important;font-weight:800!important;color:#627067!important
+/* Forms — lighter text, clearer labels, readable entered values */
+label,
+.field label,.form-grid label,.full-field label,.modal-grid label,.timezone-controls label,
+.compensation-dependent label{
+  font-size:13px!important;
+  line-height:1.5!important;
+  font-weight:700!important;
+  color:var(--rq-form-label)!important;
 }
-.field input,.form-grid input,.form-grid select,.full-field input,.modal-grid input,.modal-grid select{
-  font-size:14px!important;color:var(--rq-ink)!important
+
+input,select,textarea,
+.field input,.field select,.field textarea,
+.form-grid input,.form-grid select,.form-grid textarea,
+.full-field input,.full-field select,.full-field textarea,
+.modal-grid input,.modal-grid select,.modal-grid textarea,
+.timezone-controls input,.timezone-controls select,
+.compensation-dependent input,.compensation-dependent select{
+  font-family:inherit!important;
+  font-size:14px!important;
+  line-height:1.5!important;
+  font-weight:500!important;
+  color:var(--rq-form-text)!important;
+  background:#fffefa!important;
+  border-color:#e4e2d8!important;
+}
+
+input::placeholder,textarea::placeholder,
+.field input::placeholder,.field textarea::placeholder,
+.form-grid input::placeholder,.form-grid textarea::placeholder,
+.modal-grid input::placeholder,.modal-grid textarea::placeholder{
+  color:var(--rq-placeholder)!important;
+  opacity:1!important;
+  font-weight:400!important;
+}
+
+input:focus,select:focus,textarea:focus,
+.field input:focus,.field select:focus,.field textarea:focus,
+.form-grid input:focus,.form-grid select:focus,.form-grid textarea:focus,
+.full-field input:focus,.full-field select:focus,.full-field textarea:focus,
+.modal-grid input:focus,.modal-grid select:focus,.modal-grid textarea:focus,
+.timezone-controls input:focus,.timezone-controls select:focus{
+  color:#344139!important;
+  border-color:#aab9a5!important;
+  background:#fff!important;
+  box-shadow:0 0 0 3px rgba(82,106,88,.09)!important;
+}
+
+/* Generic secondary information — intentionally a little larger */
+small,.secondary,.muted,.text-muted,.helper-text,.form-help,.meta,
+.student-meta,.lesson-meta,.card-meta,.table-meta,
+.field small,.form-grid small,.full-field small,.modal-grid small,
+.stat-card small,.quick-card small{
+  font-size:13px!important;
+  line-height:1.6!important;
+  color:var(--rq-secondary)!important;
+  font-weight:500!important;
+}
+
+/* Secondary text inside common cards and rows */
+.student-row span:not(.student-name),
+.student-card span:not(.student-name),
+.appointment-card span:not(.time),
+.schedule-card span:not(.schedule-time),
+.next-card p,
+.quick-card p{
+  color:var(--rq-secondary);
 }
 
 /* Buttons and status accents */
-.primary-button,.secondary-button,.add-appointment,.danger-button,.submit{font-size:12px!important;font-weight:850!important}
+.primary-button,.secondary-button,.add-appointment,.danger-button,.submit{font-size:13px!important;font-weight:850!important}
 .status-badge.pending,.warning-badge{background:#f7f0df!important;color:var(--rq-sand)!important}
 .status-badge.cancelled,.danger-badge{background:#f8e9e6!important;color:var(--rq-red)!important}
 .status-badge.completed,.success-badge{background:#e8f1e6!important;color:#4e6b50!important}
