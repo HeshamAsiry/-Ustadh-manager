@@ -8,75 +8,73 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     let active = true;
-    let finished = false;
+    let redirected = false;
 
-    const finish = () => {
-      if (!active || finished) return;
-      finished = true;
-      // Remove OAuth query parameters before navigating away.
+    const goToDashboard = () => {
+      if (!active || redirected) return;
+      redirected = true;
       window.history.replaceState({}, document.title, "/auth/callback");
       window.location.replace("/dashboard");
     };
 
-    const fail = (message: string) => {
-      if (!active || finished) return;
-      finished = true;
+    const handleError = (message: string) => {
+      if (!active || redirected) return;
       setError(message);
     };
 
-    const run = async () => {
-      // PKCE returns a one-time `code` in the query string. Exchange it exactly
-      // once on the same browser Supabase client that owns the PKCE verifier.
+    const checkSession = async () => {
       const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
       const oauthError = params.get("error_description") || params.get("error");
-
       if (oauthError) {
-        fail(`تعذر تسجيل الدخول عبر Google: ${oauthError}`);
-        return;
-      }
-
-      if (!code) {
-        // Covers a direct visit to this page and a session that was already
-        // created before navigation.
-        const { data, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError) {
-          fail(sessionError.message);
-          return;
-        }
-        if (data.session) finish();
-        else fail("لم يصل رمز تسجيل الدخول من Google. أعد المحاولة من صفحة تسجيل الدخول.");
-        return;
-      }
-
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      if (exchangeError) {
-        fail(`تعذر تأكيد جلسة Google: ${exchangeError.message}`);
+        handleError(`تعذر تسجيل الدخول عبر Google: ${oauthError}`);
         return;
       }
 
       const { data, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !data.session) {
-        fail("تم تأكيد Google لكن لم يتم إنشاء جلسة التطبيق. أعد المحاولة.");
+      if (!active) return;
+      if (sessionError) {
+        handleError(sessionError.message);
         return;
       }
-
-      finish();
+      if (data.session) {
+        goToDashboard();
+      }
     };
 
-    void run();
+    // Register immediately so we catch the SIGNED_IN event emitted by the
+    // automatic PKCE URL exchange. getSession() below also covers a race where
+    // the event fires before React finishes mounting the listener.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        goToDashboard();
+      }
+    });
+
+    void checkSession();
+
+    const timeout = window.setTimeout(async () => {
+      if (!active || redirected) return;
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        goToDashboard();
+      } else {
+        handleError("تم الرجوع من Google، لكن لم تصل جلسة التطبيق. أعد المحاولة من صفحة تسجيل الدخول.");
+      }
+    }, 8000);
 
     return () => {
       active = false;
+      window.clearTimeout(timeout);
+      listener.subscription.unsubscribe();
     };
   }, []);
 
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", fontFamily: "Arial, sans-serif", direction: "rtl", padding: 24 }}>
-      <div style={{ textAlign: "center", maxWidth: 460 }}>
+      <div style={{ textAlign: "center", maxWidth: 520 }}>
         {error ? (
           <>
-            <h1>تعذر تسجيل الدخول</h1>
+            <h1>تعذر إكمال تسجيل الدخول</h1>
             <p>{error}</p>
             <button onClick={() => window.location.replace("/login")}>العودة إلى تسجيل الدخول</button>
           </>
