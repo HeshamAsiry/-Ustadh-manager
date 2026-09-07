@@ -2,24 +2,43 @@
 
 import { FormEvent, useState } from "react";
 import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import "../auth.css";
 
 const logoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/login%20logo.png";
+const googleLogoUrl = "https://raw.githubusercontent.com/HeshamAsiry/-Ustadh-manager/main/icons/Google_Favicon_2025.svg.webp";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const clearFeedback = () => { setError(""); setMessage(""); };
+
+  const continueWithGoogle = async () => {
+    clearFeedback();
+    if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
+    setGoogleBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+          flowType: "implicit",
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "تعذر بدء تسجيل الدخول عبر Google.");
+      setGoogleBusy(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -32,46 +51,37 @@ export default function LoginPage() {
         if (error) throw error;
         window.location.assign("/dashboard");
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: { data: { full_name: name.trim() } },
-        });
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: { full_name: name.trim() } } });
         if (error) throw error;
         if (data.session) window.location.assign("/dashboard");
         else setMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني لتأكيد الحساب.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ، حاول مرة أخرى.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   };
 
   const reset = async () => {
     clearFeedback();
     if (!supabase) { setError("لم يتم إعداد الاتصال بالخادم بعد."); return; }
     if (!email.trim()) { setError("اكتب بريدك الإلكتروني أولًا."); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) setError(error.message);
-    else setMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+    if (error) setError(error.message); else setMessage("تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.");
   };
 
   return (
     <main className="auth-page" dir="rtl">
       <section className="auth-card" aria-label="تسجيل الدخول إلى رواق">
-        <div className="brand">
-          <div className="brand-logo"><img src={logoUrl} alt="رواق" width={240} height={96} /></div>
-          <p>إدارة دروس القرآن واللغة العربية</p>
-        </div>
-
+        <div className="brand"><div className="brand-logo"><img src={logoUrl} alt="رواق" width={240} height={96} /></div><p>إدارة دروس القرآن واللغة العربية</p></div>
         <div className="tabs" role="tablist" aria-label="نوع الحساب">
           <button type="button" role="tab" aria-selected={mode === "login"} className={`tab ${mode === "login" ? "active" : ""}`} onClick={() => { setMode("login"); clearFeedback(); }}>تسجيل الدخول</button>
           <button type="button" role="tab" aria-selected={mode === "signup"} className={`tab ${mode === "signup" ? "active" : ""}`} onClick={() => { setMode("signup"); clearFeedback(); }}>إنشاء حساب</button>
         </div>
-
+        <button type="button" className="google-button" onClick={continueWithGoogle} disabled={busy || googleBusy} aria-busy={googleBusy}>
+          <img src={googleLogoUrl} className="google-logo" alt="Google" width={20} height={20} />
+          <span>{googleBusy ? "جارٍ المتابعة..." : "المتابعة باستخدام Google"}</span>
+        </button>
+        <div className="divider" aria-hidden="true"><span>أو</span></div>
         <form className="form" onSubmit={submit} noValidate>
           {mode === "signup" && <div className="field"><label htmlFor="name">الاسم</label><input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="اكتب اسمك" autoComplete="name" required /></div>}
           <div className="field"><label htmlFor="email">البريد الإلكتروني</label><div className="input-icon"><Mail size={17} aria-hidden="true" /><input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" dir="ltr" autoComplete="email" required /></div></div>
@@ -79,7 +89,7 @@ export default function LoginPage() {
           {mode === "login" && <button type="button" className="forgot" onClick={reset} disabled={busy}>نسيت كلمة المرور؟</button>}
           {error && <div className="message error" role="alert">{error}</div>}
           {message && <div className="message" role="status">{message}</div>}
-          <button className="submit" disabled={busy} aria-busy={busy}>{busy ? (mode === "login" ? "جارٍ تسجيل الدخول..." : "جارٍ إنشاء الحساب...") : (mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب")}</button>
+          <button className="submit" disabled={busy || googleBusy} aria-busy={busy}>{busy ? (mode === "login" ? "جارٍ تسجيل الدخول..." : "جارٍ إنشاء الحساب...") : (mode === "login" ? "تسجيل الدخول" : "إنشاء الحساب")}</button>
           {mode === "signup" && <p className="terms">بإنشاء الحساب، أنت توافق على شروط استخدام رواق.</p>}
         </form>
         <div className="footer">رواق · منصة إدارة التعليم</div>
