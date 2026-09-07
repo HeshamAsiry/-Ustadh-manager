@@ -23,27 +23,39 @@ export default function DashboardPage() {
 
   useEffect(() => {
     let mounted = true;
-    const verifySession = async () => {
-      // Wait for the SAME browser Supabase client that handles the OAuth
-      // redirect to finish reading the URL fragment and persisting the session.
-      const { error: initError } = await supabase.auth.initialize();
-      if (!mounted) return;
-      if (initError) {
-        window.location.replace("/login");
-        return;
-      }
+    let redirected = false;
 
-      const { data, error } = await supabase.auth.getSession();
-      if (!mounted) return;
-      if (error || !data.session) {
-        window.location.replace("/login");
-        return;
-      }
-      setChecking(false);
+    const goToLogin = () => {
+      if (!mounted || redirected) return;
+      redirected = true;
+      window.location.replace("/login");
     };
 
-    void verifySession();
-    return () => { mounted = false; };
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted || redirected) return;
+      if (session) {
+        setChecking(false);
+        return;
+      }
+      if (event === "INITIAL_SESSION" || event === "SIGNED_OUT") goToLogin();
+    });
+
+    // The client automatically initializes auth. Do not call initialize()
+    // again here: waiting for the auth state event prevents the first-login
+    // redirect race that was causing Google sign-in to require two attempts.
+    const timeout = window.setTimeout(async () => {
+      if (!mounted || redirected) return;
+      const { data, error } = await supabase.auth.getSession();
+      if (!mounted || redirected) return;
+      if (error || !data.session) goToLogin();
+      else setChecking(false);
+    }, 5000);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(timeout);
+      listener.subscription.unsubscribe();
+    };
   }, []);
 
   const monthLabel = useMemo(() => "سبتمبر ٢٠٢٦", []);
