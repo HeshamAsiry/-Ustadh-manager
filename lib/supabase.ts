@@ -9,10 +9,11 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || SUPABASE_PUBLISH
 
 export const supabase = createClient(url, key, {
   auth: {
-    // Use PKCE for Google OAuth. The callback page exchanges the one-time
-    // authorization code before the dashboard is allowed to render.
+    // The callback page performs the PKCE exchange explicitly.
+    // Disable automatic URL detection so the one-time code cannot be
+    // exchanged twice by the client and the callback page.
     flowType: "pkce",
-    detectSessionInUrl: true,
+    detectSessionInUrl: false,
     persistSession: true,
     autoRefreshToken: true,
   },
