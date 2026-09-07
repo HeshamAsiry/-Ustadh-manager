@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import AppNavigation from "./app-navigation";
 import "../app/dashboard/dashboard.css";
+import "../app/reference-theme.css";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
