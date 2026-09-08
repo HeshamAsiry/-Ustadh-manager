@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronLeft, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, Plus, Settings, Users, BookOpenCheck, Bell, UserRound, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, Clock3, FileText, GraduationCap, LayoutDashboard, LogOut, Plus, Settings, Users, BookOpenCheck, Bell, UserRound, ArrowLeft, CheckCircle2, BookOpen } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { countryFlag } from "../../lib/country";
 import "./dashboard.css";
@@ -15,22 +15,17 @@ const quickLinks = [
   { href: "/students", label: "الطلاب", detail: "إدارة الطلاب وملفاتهم", icon: Users },
   { href: "/calendar", label: "التقويم", detail: "الحصص والمواعيد", icon: CalendarDays },
   { href: "/lessons", label: "الحصص", detail: "تسجيل ومتابعة الحصص", icon: BookOpenCheck },
+  { href: "/quran", label: "برنامج القرآن", detail: "الحفظ والمراجعة والمتابعة", icon: BookOpen },
   { href: "/reports", label: "التقارير", detail: "التقارير والإنجازات", icon: FileText },
 ];
 
 export default function DashboardPage() {
   const [checking, setChecking] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-
-  useEffect(() => {
-    setChecking(false);
-  }, []);
-
+  useEffect(() => { setChecking(false); }, []);
   const monthLabel = useMemo(() => "سبتمبر ٢٠٢٦", []);
   const signOut = async () => { setSigningOut(true); await supabase.auth.signOut(); window.location.replace("/login"); };
-
   if (checking) return <main className="dashboard-loading" dir="rtl"><div className="loading-card"><div className="loading-mark">ر</div><p>جارٍ التحقق من تسجيل الدخول...</p></div></main>;
-
   return (
     <main className="dashboard-shell" dir="rtl">
       <aside className="sidebar">
@@ -40,6 +35,7 @@ export default function DashboardPage() {
           <a className="nav-item" href="/students"><Users size={18} /><span>الطلاب</span><b>7</b></a>
           <a className="nav-item" href="/calendar"><CalendarDays size={18} /><span>التقويم</span></a>
           <a className="nav-item" href="/lessons"><BookOpenCheck size={18} /><span>الحصص</span></a>
+          <a className="nav-item" href="/quran"><BookOpen size={18} /><span>برنامج القرآن</span></a>
           <a className="nav-item" href="/reports"><FileText size={18} /><span>التقارير</span></a>
         </nav>
         <div className="sidebar-bottom"><a className="nav-item" href="/settings"><Settings size={18} /><span>الإعدادات</span></a><button className="nav-item logout" onClick={signOut} disabled={signingOut}><LogOut size={18} /><span>{signingOut ? "جارٍ الخروج..." : "تسجيل الخروج"}</span></button></div>
