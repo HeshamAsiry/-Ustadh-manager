@@ -6,6 +6,7 @@ import "./reference-fidelity.css";
 import "./riwaq-typography.css";
 import "./riwaq-modal-forms.css";
 import AppShell from "../components/app-shell";
+import StudentFormEnhancer from "../components/student-form-enhancer";
 
 export const metadata: Metadata = {
   title: "رواق | إدارة التعليم",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body><AppShell>{children}</AppShell></body>
+      <body><StudentFormEnhancer/><AppShell>{children}</AppShell></body>
     </html>
   );
 }
