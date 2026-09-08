@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BookOpen, BookOpenCheck, CalendarDays, Clock3, CreditCard, FileText, GraduationCap, LayoutDashboard, LogOut, Settings, Users, Waypoints } from "lucide-react";
+import { Bell, BookOpenCheck, CalendarDays, Clock3, CreditCard, FileText, GraduationCap, LayoutDashboard, LogOut, Settings, Users, Waypoints } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import "../app/dashboard/dashboard.css";
@@ -12,7 +12,6 @@ const items=[
   ["/calendar","التقويم",CalendarDays],
   ["/my-calendar","جدولي الشخصي",CalendarDays],
   ["/lessons","الحصص",BookOpenCheck],
-  ["/quran","برنامج القرآن",BookOpen],
   ["/hours","الساعات",Clock3],
   ["/payments","المدفوعات",CreditCard],
   ["/exams","الاختبارات",GraduationCap],
