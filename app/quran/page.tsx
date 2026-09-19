@@ -8,6 +8,21 @@ import "./quran.css";
 type Track="revision"|"memorization"; type RevisionLevel="simple"|"medium"|"intensive"; type Plan="one_year"|"two_year"|"three_year"|"custom"; type JuzStatus="not_reviewed"|"in_progress"|"mastered"|"needs_reinforcement"; type SurahStatus="not_started"|"in_progress"|"memorized"|"mastered";
 type Program={id?:string;track:Track;revision_level:RevisionLevel;plan_type:Plan;pages_per_day:number;days_per_week:number;start_date:string;expected_end_date:string};
 const surahs=["الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق","الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس","التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد","الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"];
+// Standard Madinah Mushaf: surah-to-juz spans. A surah may cross more than one juz.
+const juzStarts = [
+  1,1,3,4,6,7,8,9,10,11,
+  11,12,13,13,14,14,15,15,16,16,
+  17,17,18,18,18,19,19,20,20,21,
+  21,21,21,22,22,22,23,23,23,24,
+  24,25,25,25,25,26,26,26,26,26,
+  26,27,27,27,27,27,27,28,28,28,
+  28,28,28,28,28,28,29,29,29,29,
+  29,29,29,29,30,30,30,30,30,30,
+  30,30,30,30,30,30,30,30,30,30,
+  30,30,30,30,30,30,30,30,30,30,
+  30,30,30,30
+];
+
 const juzStates:{key:JuzStatus;label:string}[]=[{key:"not_reviewed",label:"لم يراجع"},{key:"in_progress",label:"قيد المراجعة"},{key:"mastered",label:"متقن"},{key:"needs_reinforcement",label:"يحتاج تثبيت"}];
 const surahStates:{key:SurahStatus;label:string}[]=[{key:"not_started",label:"لم تبدأ"},{key:"in_progress",label:"قيد الحفظ"},{key:"memorized",label:"تم الحفظ"},{key:"mastered",label:"متقنة ومثبتة"}];
 const base:Program={track:"revision",revision_level:"medium",plan_type:"two_year",pages_per_day:1,days_per_week:6,start_date:new Date().toISOString().slice(0,10),expected_end_date:""};
@@ -20,7 +35,7 @@ export default function QuranPage(){
  useEffect(()=>{(async()=>{const {data:{user}}=await supabase.auth.getUser();if(!user){setLoading(false);return}const {data:x}=await supabase.from("quran_programs").select("*").eq("user_id",user.id).order("created_at",{ascending:false}).limit(1).maybeSingle();if(x){setP({...base,...x});const [{data:a},{data:b},{data:c}]=await Promise.all([supabase.from("quran_juz_progress").select("juz_number,status").eq("program_id",x.id),supabase.from("quran_surah_progress").select("surah_number,status").eq("program_id",x.id),supabase.from("quran_daily_checklists").select("*").eq("program_id",x.id).eq("checklist_date",today).maybeSingle()]);setJ(Object.fromEntries((a??[]).map((r:any)=>[r.juz_number,r.status])));setS(Object.fromEntries((b??[]).map((r:any)=>[r.surah_number,r.status])));if(c)setChecks([c.listening,c.new_memorization,c.repeat_20,c.recent_linking,c.distant_review])}setLoading(false)})()},[]);
  useEffect(()=>{if(p.track==="memorization"&&p.plan_type!=="custom"){const pages=p.plan_type==="one_year"?2:p.plan_type==="two_year"?1:.5;setP(x=>({...x,pages_per_day:pages,expected_end_date:endDate(x.start_date,pages,x.days_per_week)}))}},[p.track,p.plan_type]);
  const counts=useMemo(()=>Object.fromEntries(juzStates.map(x=>[x.key,Object.values(j).filter(v=>v===x.key).length])),[j]);
- const filtered=useMemo(()=>surahs.map((name,i)=>({n:i+1,name,status:s[i+1]??"not_started" as SurahStatus,juz:Math.ceil((i+1)/4)})).filter(x=>(sf==="all"||x.status===sf)&&(!q||x.name.includes(q))&&(jf==="all"||x.juz===jf)),[s,q,sf,jf]);
+ const filtered=useMemo(()=>surahs.map((name,i)=>{const start=juzStarts[i]??30;const end=i===surahs.length-1?30:(juzStarts[i+1]??start);return {n:i+1,name,status:s[i+1]??"not_started" as SurahStatus,start,end}}).filter(x=>(sf==="all"||x.status===sf)&&(!q||x.name.includes(q))&&(jf==="all"||(x.start<=jf&&x.end>=jf))),[s,q,sf,jf]);
  const pct=p.track==="revision"?Math.round(((counts.mastered??0)+(counts.in_progress??0)*.5)/30*100):Math.round(Object.values(s).filter(x=>x==="memorized"||x==="mastered").length/114*100);
  const cycleJ=(n:number)=>setJ(v=>{const cur=v[n]??"not_reviewed",i=juzStates.findIndex(x=>x.key===cur);return {...v,[n]:juzStates[(i+1)%juzStates.length].key}});
  const cycleS=(n:number)=>setS(v=>{const cur=v[n]??"not_started",i=surahStates.findIndex(x=>x.key===cur);return {...v,[n]:surahStates[(i+1)%surahStates.length].key}});
