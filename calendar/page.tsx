@@ -142,7 +142,9 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const parts=zonedParts(e.starts_at,tz), endParts=zonedParts(e.ends_at,tz);
         const duration=Math.max(0,Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000));
         const code=primary?.country_code||"";
-        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType,notes:e.notes||null};
+        const rawTitle=e.title||"";
+        const subject=eventType==="lesson"?(rawTitle.split(" — ")[0]||"القرآن الكريم"):rawTitle||"بدون عنوان";
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject,duration,status:e.status,eventType,notes:e.notes||null};
       }));
     }
     setLoading(false);
@@ -203,7 +205,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
       teacher_id:(await supabase.auth.getUser()).data.user?.id,
       student_id:personalOnly?null:student?.id||null,
       event_type:personalOnly?"personal":"lesson",
-      title:personalOnly?form.title.trim():form.subject+" — "+student!.full_name,
+      title:personalOnly?form.title.trim():form.subject,
       starts_at:start.toISOString(),
       ends_at:end.toISOString(),
       timezone:teacherTimezone,
