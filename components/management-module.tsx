@@ -80,6 +80,18 @@ export default function ManagementModule({kind}:{kind:Kind}){
       const userDataResult=await supabase.from("user_data").select("settings,management_modules").eq("user_id",user.user.id).maybeSingle();
       if(userDataResult.error){setNotice(userDataResult.error.message);setRows([]);setLoadingState(false);return}
 
+      if(kind==="settings"){
+        const settings=userDataResult.data?.settings||{};
+        const settingsRows:Row[]=[
+          {id:"language",title:"لغة الواجهة",subtitle:"اللغة الأساسية للتطبيق",status:"مفعل",value:String(settings.primaryLanguage||"العربية")},
+          {id:"timezone",title:"المنطقة الزمنية",subtitle:"تستخدم لحساب مواعيد الحصص",status:"مفعل",value:String(settings.teacherTimeZone||settings.timezone||"Africa/Cairo")},
+          {id:"reminder",title:"التذكير قبل الحصة",subtitle:"مدة التنبيه قبل الموعد",status:"مفعل",value:String(settings.notifyMinutesBefore??30)+" دقيقة"}
+        ];
+        if(!cancelled)setRows(settingsRows);
+        if(!cancelled){setHydrated(true);setLoadingState(false)}
+        return;
+      }
+
       if(!DB_KINDS.has(kind)){
         const cloudModules=userDataResult.data?.management_modules;
         const cloudRows=cloudModules&&typeof cloudModules==="object"&&Array.isArray(cloudModules[kind])?cloudModules[kind]:null;
@@ -154,7 +166,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
   },[kind]);
 
   useEffect(()=>{
-    if(DB_KINDS.has(kind)||!hydrated)return;
+    if(DB_KINDS.has(kind)||kind==="settings"||!hydrated)return;
     void writeCloudRows(kind,rows);
   },[rows,kind,hydrated]);
 
@@ -179,18 +191,43 @@ export default function ManagementModule({kind}:{kind:Kind}){
 
   const start=(row?:Row)=>{
     if(DB_KINDS.has(kind)){
-      if(kind==="lessons"||kind==="hours"||kind==="reports"){
-        window.location.href="/students";
-      }
+      if(kind==="lessons"||kind==="hours"||kind==="reports")window.location.href="/students";
       return;
     }
-    setEditing(row||null);
-    setForm(row?{title:row.title,subtitle:row.subtitle,status:row.status,value:row.value||"",date:row.date||"",extra:row.extra||""}:{title:"",subtitle:"",status:kind==="settings"?"مفعل":"نشط",value:"",date:"",extra:""});
+    const target=kind==="settings" ? (row||rows[0]) : row;
+    if(kind==="settings"&&!target){setNotice("تعذر تحميل الإعدادات.");return}
+    setEditing(target||null);
+    setForm(target?{title:target.title,subtitle:target.subtitle,status:target.status,value:target.value||"",date:target.date||"",extra:target.extra||""}:{title:"",subtitle:"",status:"نشط",value:"",date:"",extra:""});
     setOpen(true);setNotice("");
   };
   const close=()=>{setOpen(false);setEditing(null)};
-  const submit=()=>{
-    if(kind==="settings"&&!editing){close();setNotice("تم حفظ الإعدادات");return}
+  const submit=async()=>{
+    if(kind==="settings"){
+      if(!editing)return setNotice("اختر إعدادًا لتعديله.");
+      const map:Record<string,string>={language:"primaryLanguage",timezone:"teacherTimeZone",reminder:"notifyMinutesBefore"};
+      const settingKey=map[editing.id];
+      if(!settingKey)return setNotice("الإعداد غير معروف.");
+      const {data:user}=await supabase.auth.getUser();
+      if(!user.user)return setNotice("انتهت جلسة الدخول.");
+      const current=await supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle();
+      if(current.error)return setNotice(current.error.message);
+      const settings=current.data?.settings||{};
+      let value=form.value.trim();
+      if(editing.id==="reminder"){
+        const minutes=Number.parseInt(value,10);
+        if(!Number.isFinite(minutes)||minutes<0)return setNotice("اكتب مدة تذكير صحيحة بالدقائق.");
+        value=String(minutes);
+      }else if(!value){
+        return setNotice("اكتب قيمة الإعداد.");
+      }
+      const nextSettings={...settings,[settingKey]:editing.id==="reminder"?Number(value):value};
+      const {error}=await supabase.from("user_data").update({settings:nextSettings}).eq("user_id",user.user.id);
+      if(error)return setNotice(error.message);
+      setRows(prev=>prev.map(r=>r.id===editing.id?{...r,value:editing.id==="reminder"?value+" دقيقة":value}:r));
+      close();
+      setNotice("تم حفظ الإعداد بنجاح.");
+      return;
+    }
     if(!form.title.trim())return setNotice("اكتب عنوانًا أولًا.");
     const next:Row={id:editing?.id||crypto.randomUUID(),title:form.title.trim(),subtitle:form.subtitle.trim()||"بدون وصف",status:form.status,value:form.value||undefined,date:form.date||undefined,extra:form.extra||undefined};
     setRows(prev=>editing?prev.map(r=>r.id===editing.id?next:r):[next,...prev]);
