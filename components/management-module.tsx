@@ -235,6 +235,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
       setForm(row
         ? {title:row.title,subtitle:row.subtitle,status:row.status,value:String(p.amount??""),date:row.date||"",extra:String(p.amount_paid??"")}
         : {title:"",subtitle:new Date().toISOString().slice(0,7),status:"غير مدفوعة",value:"",date:"",extra:""});
+      if(!row){setPaymentStudentId("");setPaymentCurrency("USD")}
       setOpen(true);setNotice("");
       return;
     }
