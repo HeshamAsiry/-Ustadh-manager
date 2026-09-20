@@ -70,11 +70,11 @@ export default function DashboardPage(){
   useEffect(()=>{void load()},[]);
 
   const today=partsInZone(new Date().toISOString(),teacherTimezone).date;
-  const todayEvents=events.filter(e=>e.event_type==="lesson");
+  const todayEvents=events.filter(e=>e.event_type==="lesson"&&e.status!=="cancelled");
   const allDayEvents=events;
   const studentMap=useMemo(()=>Object.fromEntries(students.map(s=>[s.id,s])),[students]);
-  const orderedLessons=useMemo(()=>todayEvents.filter(e=>e.status!=="cancelled").sort((a,b)=>new Date(a.starts_at).getTime()-new Date(b.starts_at).getTime()),[todayEvents]);
-  const nextLesson=orderedLessons.find(e=>new Date(e.starts_at).getTime()>Date.now())||orderedLessons.find(e=>e.status!=="completed")||orderedLessons[0];
+  const orderedLessons=useMemo(()=>todayEvents.slice().sort((a,b)=>new Date(a.starts_at).getTime()-new Date(b.starts_at).getTime()),[todayEvents]);
+  const nextLesson=orderedLessons.find(e=>new Date(e.starts_at).getTime()>Date.now()&&e.status!=="completed")||orderedLessons.find(e=>e.status==="scheduled"||e.status==="pending");
   const totalTodayHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
   const completedToday=todayEvents.filter(e=>e.status==="completed").length;
   const personalToday=allDayEvents.filter(e=>e.event_type==="personal"&&e.status!=="cancelled").length;
