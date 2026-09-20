@@ -378,7 +378,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
             <label>القيمة<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})} placeholder="—"/></label>
           </div>
           {(kind==="lessons"||kind==="alerts"||kind==="my-calendar"||kind==="reports")&&<label>التاريخ<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>}
-          {(kind==="lessons"||kind==="reports"||kind==="exams")&&<label>ملاحظات إضافية><textarea value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>}
+          {(kind==="lessons"||kind==="reports"||kind==="exams")&&<label>ملاحظات إضافية<textarea value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>}
           {kind==="settings"&&<label>القيمة الجديدة<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/></label>}
         </>}
       </div>
