@@ -8,7 +8,8 @@ import { countryFlag } from "../../lib/country";
 import "./dashboard.css";
 
 type Student={id:string;full_name:string;country_code:string|null;timezone:string;status:string};
-type EventRow={id:string;student_id:string|null;event_type:string;title:string;starts_at:string;ends_at:string;status:string};
+type EventRow={id:string;student_id:string|null;event_type:string;title:string;starts_at:string;ends_at:string;status:string;is_recurring?:boolean;student_label?:string};
+type RecurringSlot={id:string;source_type:"lesson"|"personal";title:string;day_of_week:number;start_time:string;duration_minutes:number;timezone:string;active:boolean};
 
 const pad=(n:number)=>String(n).padStart(2,"0");
 const wallClockToUtc=(date:string,time:string,timezone:string)=>{
@@ -35,6 +36,8 @@ export default function DashboardPage(){
   const [students,setStudents]=useState<Student[]>([]);
   const [events,setEvents]=useState<EventRow[]>([]);
   const [monthEvents,setMonthEvents]=useState<EventRow[]>([]);
+  const [recurringSlots,setRecurringSlots]=useState<RecurringSlot[]>([]);
+  const [recurringParticipants,setRecurringParticipants]=useState<Record<string,string[]>>({});
   const [teacherTimezone,setTeacherTimezone]=useState("Africa/Cairo");
   const [loading,setLoading]=useState(true);
   const [signingOut,setSigningOut]=useState(false);
@@ -56,24 +59,54 @@ export default function DashboardPage(){
     const monthEndDate=nextMonthDate.toISOString().slice(0,10);
     const monthStartUtc=wallClockToUtc(monthStart,"00:00",tz).toISOString();
     const monthEndUtc=wallClockToUtc(monthEndDate,"00:00",tz).toISOString();
-    const [s,d,m]=await Promise.all([
+    const [s,d,m,rules]=await Promise.all([
       supabase.from("students").select("id,full_name,country_code,timezone,status").neq("status","archived").order("full_name"),
       supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status").gte("starts_at",startOfDay).lt("starts_at",endOfDay).order("starts_at"),
-      supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status").gte("starts_at",monthStartUtc).lt("starts_at",monthEndUtc)
+      supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status").gte("starts_at",monthStartUtc).lt("starts_at",monthEndUtc),
+      supabase.from("recurring_schedule_slots").select("id,source_type,title,day_of_week,start_time,duration_minutes,timezone,active").eq("source_type","lesson").eq("active",true)
     ]);
     if(s.error) setMessage(s.error.message); else setStudents((s.data||[]) as Student[]);
     if(d.error) setMessage(d.error.message); else setEvents((d.data||[]) as EventRow[]);
     if(m.error) setMessage(m.error.message); else setMonthEvents((m.data||[]) as EventRow[]);
+    const ruleRows=(rules.data||[]) as RecurringSlot[];
+    setRecurringSlots(ruleRows);
+    const ruleIds=ruleRows.map(r=>r.id);
+    if(ruleIds.length){
+      const rp=await supabase.from("recurring_slot_students").select("recurring_slot_id,student_id").in("recurring_slot_id",ruleIds);
+      if(rp.error)setMessage(rp.error.message);
+      const participantMap:Record<string,string[]>={};
+      (rp.data||[]).forEach((row:any)=>{if(!participantMap[row.recurring_slot_id])participantMap[row.recurring_slot_id]=[];participantMap[row.recurring_slot_id].push(row.student_id)});
+      setRecurringParticipants(participantMap);
+    }else setRecurringParticipants({});
     setLoading(false);
   };
 
   useEffect(()=>{void load()},[]);
 
   const today=partsInZone(new Date().toISOString(),teacherTimezone).date;
-  const todayEvents=events.filter(e=>e.event_type==="lesson"&&e.status!=="cancelled");
-  const allDayEvents=events;
   const studentMap=useMemo(()=>Object.fromEntries(students.map(s=>[s.id,s])),[students]);
-  const orderedLessons=useMemo(()=>todayEvents.slice().sort((a,b)=>new Date(a.starts_at).getTime()-new Date(b.starts_at).getTime()),[todayEvents]);
+  const todayLessons=useMemo(()=>{
+    const actual=events.filter(e=>e.event_type==="lesson"&&e.status!=="cancelled");
+    const actualKeys=new Set(actual.map(e=>{
+      const duration=Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000);
+      return `${e.starts_at}|${e.ends_at}|${e.student_id||""}`;
+    }));
+    const day=new Date(today+"T12:00:00").getDay();
+    const recurring=recurringSlots.filter(r=>r.source_type==="lesson"&&r.active&&r.day_of_week===day).map(r=>{
+      const ids=recurringParticipants[r.id]||[];
+      const activeIds=ids.filter(id=>studentMap[id]);
+      if(!activeIds.length)return null;
+      const start=wallClockToUtc(today,r.start_time.slice(0,5),r.timezone||teacherTimezone);
+      const end=new Date(start.getTime()+r.duration_minutes*60000);
+      const exactKey=`${start.toISOString()}|${end.toISOString()}|${activeIds[0]||""}`;
+      if(actualKeys.has(exactKey))return null;
+      return {id:`rec:${r.id}:${today}`,student_id:activeIds[0]||null,event_type:"lesson",title:r.title,starts_at:start.toISOString(),ends_at:end.toISOString(),status:"scheduled",is_recurring:true,student_label:activeIds.map(id=>studentMap[id]?.full_name).filter(Boolean).join("، ")};
+    }).filter(Boolean) as EventRow[];
+    return [...actual,...recurring].sort((a,b)=>new Date(a.starts_at).getTime()-new Date(b.starts_at).getTime());
+  },[events,recurringSlots,recurringParticipants,studentMap,today,teacherTimezone]);
+  const todayEvents=todayLessons;
+  const allDayEvents=events;
+  const orderedLessons=todayLessons;
   const nextLesson=orderedLessons.find(e=>new Date(e.starts_at).getTime()>Date.now()&&e.status!=="completed")||orderedLessons.find(e=>e.status==="scheduled"||e.status==="pending");
   const totalTodayHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
   const completedToday=todayEvents.filter(e=>e.status==="completed").length;
@@ -106,7 +139,7 @@ export default function DashboardPage(){
       <section className="section-block"><div className="section-heading"><div><span className="section-index">01</span><h2>الموعد القادم</h2></div><a href="/calendar">عرض الجدول <ChevronLeft size={15}/></a></div>
         {loading?<div className="next-card"><div className="next-info"><p>جارٍ تحميل الجدول...</p></div></div>:nextLesson?<div className="next-card">
           <div className="next-time"><span>القادمة</span><strong>{formatTime(nextLesson.starts_at,teacherTimezone)}</strong><small>إلى {formatTime(nextLesson.ends_at,teacherTimezone)}</small></div><div className="next-divider"/>
-          <div className="next-info"><span className="status-pill"><span/> {nextLesson.status==="completed"?"مكتملة":nextLesson.status==="pending"?"قيد الانتظار":"موعد مجدول"}</span><h3>{countryFlag(studentMap[nextLesson.student_id||""]?.country_code||"")} {nextLesson.title}</h3><p><Clock3 size={15}/> {studentMap[nextLesson.student_id||""]?.full_name||"طالب"} · {teacherTimezone}</p></div><a className="arrow-button" href="/lessons"><ArrowLeft size={19}/></a>
+          <div className="next-info"><span className="status-pill"><span/> {nextLesson.status==="completed"?"مكتملة":nextLesson.status==="pending"?"قيد الانتظار":"موعد مجدول"}</span><h3>{countryFlag(studentMap[nextLesson.student_id||""]?.country_code||"")} {nextLesson.title}</h3><p><Clock3 size={15}/> {nextLesson.student_label||studentMap[nextLesson.student_id||""]?.full_name||"طالب"} · {teacherTimezone}</p></div><a className="arrow-button" href="/lessons"><ArrowLeft size={19}/></a>
         </div>:<div className="next-card"><div className="next-info"><h3>لا توجد حصة قادمة اليوم</h3><p>أضف موعدًا من صفحة التقويم.</p></div></div>}
       </section>
 
@@ -115,7 +148,7 @@ export default function DashboardPage(){
       </section>
 
       <section className="section-block"><div className="section-heading"><div><span className="section-index">03</span><h2>جدول مواعيد اليوم بالتفصيل</h2></div><span className="muted-label">{todayLabel}</span></div>
-        <div className="schedule-card">{orderedLessons.length?orderedLessons.map((lesson)=><div className="schedule-row" key={lesson.id}><div className="schedule-time"><strong>{formatTime(lesson.starts_at,teacherTimezone)}</strong><span>{formatTime(lesson.ends_at,teacherTimezone)}</span></div><div className={"timeline-dot "+(lesson.status==="completed"?"done":"next")}/><div className="schedule-main"><div><h3><span className="student-country-flag">{countryFlag(studentMap[lesson.student_id||""]?.country_code||"")}</span>{studentMap[lesson.student_id||""]?.full_name||"طالب"}</h3><span>{lesson.title}</span></div><p>{lesson.status==="completed"?"تم تسجيل الحصة":"موعد مجدول"}</p></div><span className={"lesson-badge "+(lesson.status==="completed"?"":"now")}>{lesson.status==="completed"?"مكتملة":"قادم"}</span></div>):<div className="schedule-footer"><Clock3 size={16}/><span>لا توجد حصص مسجلة لهذا اليوم.</span></div>}<div className="schedule-footer"><Clock3 size={16}/><span>التوقيت الأساسي للجدول: {teacherTimezone}.</span></div></div>
+        <div className="schedule-card">{orderedLessons.length?orderedLessons.map((lesson)=><div className="schedule-row" key={lesson.id}><div className="schedule-time"><strong>{formatTime(lesson.starts_at,teacherTimezone)}</strong><span>{formatTime(lesson.ends_at,teacherTimezone)}</span></div><div className={"timeline-dot "+(lesson.status==="completed"?"done":"next")}/><div className="schedule-main"><div><h3><span className="student-country-flag">{countryFlag(studentMap[lesson.student_id||""]?.country_code||"")}</span>{lesson.student_label||studentMap[lesson.student_id||""]?.full_name||"طالب"}</h3><span>{lesson.title}</span></div><p>{lesson.status==="completed"?"تم تسجيل الحصة":"موعد مجدول"}</p></div><span className={"lesson-badge "+(lesson.status==="completed"?"":"now")}>{lesson.status==="completed"?"مكتملة":"قادم"}</span></div>):<div className="schedule-footer"><Clock3 size={16}/><span>لا توجد حصص مسجلة لهذا اليوم.</span></div>}<div className="schedule-footer"><Clock3 size={16}/><span>التوقيت الأساسي للجدول: {teacherTimezone}.</span></div></div>
       </section>
 
       <section className="section-block"><div className="section-heading"><div><span className="section-index">04</span><h2>إحصائيات وإنجازات الشهر الحالي</h2></div><a href="/reports">عرض التقارير الموسعة <ChevronLeft size={15}/></a></div>
