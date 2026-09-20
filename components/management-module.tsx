@@ -295,8 +295,15 @@ export default function ManagementModule({kind}:{kind:Kind}){
       const result=editing?await supabase.from("educational_paths").update(payload).eq("id",editing.id).select("id").single():await supabase.from("educational_paths").insert(payload).select("id").single();
       if(result.error)return setNotice(result.error.message);
       close();setNotice(editing?"تم تحديث المسار بنجاح.":"تمت إضافة المسار بنجاح.");
-      const refreshed=await supabase.from("educational_paths").select("id,title,description,category,stage_name,author_or_source,color,total_units_or_pages,status,legacy_id").order("title");
-      if(!refreshed.error)setRows((refreshed.data||[]).map((p:any)=>({id:p.id,title:p.title,subtitle:p.description||p.stage_name||"بدون وصف",status:p.status==="active"?"نشط":"مؤرشف",value:`${Number(p.total_units_or_pages||0)} وحدة`,date:"",extra:JSON.stringify({...p})})));
+      const [refreshed,stageRefresh]=await Promise.all([
+        supabase.from("educational_paths").select("id,title,description,category,stage_name,author_or_source,color,total_units_or_pages,status,legacy_id").order("title"),
+        supabase.from("educational_path_stages").select("path_id")
+      ]);
+      if(!refreshed.error){
+        const stageCounts:Record<string,number>={};
+        (stageRefresh.data||[]).forEach((s:any)=>{stageCounts[s.path_id]=(stageCounts[s.path_id]||0)+1});
+        setRows((refreshed.data||[]).map((p:any)=>({id:p.id,title:p.title,subtitle:p.description||p.stage_name||"بدون وصف",status:p.status==="active"?"نشط":"مؤرشف",value:`${Number(p.total_units_or_pages||0)} وحدة`,date:"",extra:JSON.stringify({...p,stage_count:stageCounts[p.id]||0})})));
+      }
       return;
     }
     if(kind==="payments"){
