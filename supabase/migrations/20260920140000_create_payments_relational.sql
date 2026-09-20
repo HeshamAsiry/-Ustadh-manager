@@ -22,7 +22,8 @@ create table if not exists public.payments (
   legacy_data jsonb null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (amount_paid <= amount or amount = 0)
+  check (amount_paid <= amount or amount = 0),
+  check (abs(total_due-greatest(0,amount-amount_paid))<=0.01)
 );
 
 create index if not exists payments_teacher_period_idx on public.payments(teacher_id, month_year);
