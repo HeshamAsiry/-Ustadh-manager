@@ -28,7 +28,7 @@ const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:stri
 
 
 const STORAGE_PREFIX="riwaq:module:";
-const DB_KINDS=new Set<Kind>(["hours","lessons","reports"]);
+const DB_KINDS=new Set<Kind>(["hours","lessons","reports","payments"]);
 const readLocal=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
 const writeCloudRows=async(kind:Kind,rows:Row[])=>{
   const {data:user}=await supabase.auth.getUser();
