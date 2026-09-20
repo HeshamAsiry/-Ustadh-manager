@@ -29,9 +29,16 @@ const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:stri
 
 const STORAGE_PREFIX="riwaq:module:";
 const DB_KINDS=new Set<Kind>(["hours","lessons","reports"]);
-
 const readLocal=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
-const saveLocal=(kind:Kind,rows:Row[])=>localStorage.setItem(STORAGE_PREFIX+kind,JSON.stringify(rows));
+const writeCloudRows=async(kind:Kind,rows:Row[])=>{
+  const {data:user}=await supabase.auth.getUser();
+  if(!user.user)return;
+  const current=await supabase.from("user_data").select("management_modules").eq("user_id",user.user.id).maybeSingle();
+  if(current.error)return;
+  const modules=current.data?.management_modules&&typeof current.data.management_modules==="object"?current.data.management_modules:{};
+  await supabase.from("user_data").update({management_modules:{...modules,[kind]:rows}}).eq("user_id",user.user.id);
+};
+
 
 const partsInZone=(iso:string,timezone:string)=>{
   const parts=new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(iso));
@@ -57,7 +64,7 @@ const formatArabicDate=(iso:string,timezone:string)=>{
 
 export default function ManagementModule({kind}:{kind:Kind}){
   const c=config[kind], Icon=icons[kind];
-  const [rows,setRows]=useState<Row[]>([]),[query,setQuery]=useState(""),[tab,setTab]=useState(0),[loadingState,setLoadingState]=useState(true);
+  const [rows,setRows]=useState<Row[]>([]),[query,setQuery]=useState(""),[tab,setTab]=useState(0),[loadingState,setLoadingState]=useState(true),[hydrated,setHydrated]=useState(false);
   const [open,setOpen]=useState(false),[editing,setEditing]=useState<Row|null>(null),[notice,setNotice]=useState("");
   const [form,setForm]=useState({title:"",subtitle:"",status:"نشط",value:"",date:"",extra:""});
 
@@ -65,16 +72,32 @@ export default function ManagementModule({kind}:{kind:Kind}){
   useEffect(()=>{
     let cancelled=false;
     const load=async()=>{
-      if(!DB_KINDS.has(kind)){
-        setRows(readLocal(kind,c.seed));
-        setLoadingState(false);
-        return;
-      }
       setLoadingState(true);
+      setHydrated(false);
       const {data:user}=await supabase.auth.getUser();
       if(!user.user){setRows([]);setLoadingState(false);return}
-      const settingsResult=await supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle();
-      const timezone=settingsResult.data?.settings?.teacherTimeZone||settingsResult.data?.settings?.timezone||"Africa/Cairo";
+
+      const userDataResult=await supabase.from("user_data").select("settings,management_modules").eq("user_id",user.user.id).maybeSingle();
+      if(userDataResult.error){setNotice(userDataResult.error.message);setRows([]);setLoadingState(false);return}
+
+      if(!DB_KINDS.has(kind)){
+        const cloudModules=userDataResult.data?.management_modules;
+        const cloudRows=cloudModules&&typeof cloudModules==="object"&&Array.isArray(cloudModules[kind])?cloudModules[kind]:null;
+        if(cloudRows){
+          if(!cancelled)setRows(cloudRows as Row[]);
+        }else{
+          const localRows=readLocal(kind,c.seed);
+          if(!cancelled)setRows(localRows as Row[]);
+          if(localRows.length){
+            const modules=cloudModules&&typeof cloudModules==="object"?cloudModules:{};
+            await supabase.from("user_data").update({management_modules:{...modules,[kind]:localRows}}).eq("user_id",user.user.id);
+          }
+        }
+        if(!cancelled){setHydrated(true);setLoadingState(false)}
+        return;
+      }
+
+      const timezone=userDataResult.data?.settings?.teacherTimeZone||userDataResult.data?.settings?.timezone||"Africa/Cairo";
       const now=new Date();
       const localToday=partsInZone(now.toISOString(),timezone).date;
       const monthStart=localToday.slice(0,7)+"-01";
@@ -124,11 +147,17 @@ export default function ManagementModule({kind}:{kind:Kind}){
           return {id:e.id,title,subtitle:student?.full_name||"طالب",status,value:student?.full_name||"—",date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):(report||e.title)};
         }));
       }
-      setLoadingState(false);
+      if(!cancelled){setHydrated(true);setLoadingState(false)}
     };
     void load();
     return()=>{cancelled=true};
   },[kind]);
+
+  useEffect(()=>{
+    if(DB_KINDS.has(kind)||!hydrated)return;
+    void writeCloudRows(kind,rows);
+  },[rows,kind,hydrated]);
+
 
   useEffect(()=>{
     if(DB_KINDS.has(kind))return;
@@ -154,21 +183,32 @@ export default function ManagementModule({kind}:{kind:Kind}){
   },[kind,rows]);
 
   const start=(row?:Row)=>{
-    if(!row && kind==="lessons"){window.location.href="/students";return}
-    if(!row && kind==="hours"){window.location.href="/students";return}
+    if(DB_KINDS.has(kind)){
+      if(kind==="lessons"||kind==="hours"||kind==="reports"){
+        window.location.href="/students";
+      }
+      return;
+    }
     setEditing(row||null);
     setForm(row?{title:row.title,subtitle:row.subtitle,status:row.status,value:row.value||"",date:row.date||"",extra:row.extra||""}:{title:"",subtitle:"",status:kind==="settings"?"مفعل":"نشط",value:"",date:"",extra:""});
     setOpen(true);setNotice("");
   };
   const close=()=>{setOpen(false);setEditing(null)};
   const submit=()=>{
-    if(kind==="settings" && !editing){close();setNotice("تم حفظ الإعدادات");return}
-    if(!form.title.trim()) return setNotice("اكتب عنوانًا أولًا.");
+    if(kind==="settings"&&!editing){close();setNotice("تم حفظ الإعدادات");return}
+    if(!form.title.trim())return setNotice("اكتب عنوانًا أولًا.");
     const next:Row={id:editing?.id||crypto.randomUUID(),title:form.title.trim(),subtitle:form.subtitle.trim()||"بدون وصف",status:form.status,value:form.value||undefined,date:form.date||undefined,extra:form.extra||undefined};
     setRows(prev=>editing?prev.map(r=>r.id===editing.id?next:r):[next,...prev]);
-    close();setNotice(editing?"تم تحديث العنصر بنجاح.":"تمت الإضافة بنجاح.");
+    close();
+    setNotice(editing?"تم تحديث العنصر بنجاح.":"تمت الإضافة بنجاح.");
   };
-  const remove=(id:string)=>{if(confirm("هل تريد حذف هذا العنصر؟")){setRows(v=>v.filter(x=>x.id!==id));setNotice("تم حذف العنصر.")}};
+  const remove=(id:string)=>{
+    if(DB_KINDS.has(kind)){setNotice("هذا السجل مرتبط بالحصة والطالب، ويُعدّل من صفحة الطلاب أو التقويم.");return}
+    if(confirm("هل تريد حذف هذا العنصر؟")){
+      setRows(v=>v.filter(x=>x.id!==id));
+      setNotice("تم حذف العنصر.");
+    }
+  };
   const print=()=>{const w=window.open("","_blank");if(!w)return;w.document.write(`<html dir="rtl"><head><title>${c.title}</title><style>body{font-family:Arial;padding:32px;color:#28372f}table{width:100%;border-collapse:collapse;margin-top:24px}td,th{padding:10px;border:1px solid #ddd;text-align:right}h1{color:#526a58}</style></head><body><h1>رواق — ${c.title}</h1><p>${c.subtitle}</p><table><thead><tr>${c.columns.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${filtered.map(r=>`<tr><td>${r.title}</td><td>${r.subtitle}</td><td>${r.value||r.date||"—"}</td><td>${r.status}</td></tr>`).join("")}</tbody></table><script>window.print()</script></body></html>`);w.document.close()};
 
   return <main className="management-page" dir="rtl">
