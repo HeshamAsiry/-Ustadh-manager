@@ -1,8 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const SUPABASE_URL = "https://pnhmfkigcvynhrmvcxam.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NawCKjOBIvETIQEFj3u8hg_jBJSmBJs";
+const SUPABASE_URL = "https://tzbafipmzhsjzziqcxoa.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GNXLzI9Ft0R6w8seT7DfdQ_TlPEOUUx";
+
+const PRIVATE_PREFIXES = [
+  "/dashboard",
+  "/students",
+  "/calendar",
+  "/lessons",
+  "/quran",
+  "/reports",
+  "/hours",
+  "/payments",
+  "/exams",
+  "/educational-paths",
+  "/alerts",
+  "/settings",
+  "/my-calendar",
+];
 
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -23,8 +39,12 @@ export async function updateSession(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getClaims();
+  const pathname = request.nextUrl.pathname;
+  const isPrivate = PRIVATE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
+  );
 
-  if (!data?.claims?.sub && request.nextUrl.pathname.startsWith("/dashboard")) {
+  if (isPrivate && !data?.claims?.sub) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
