@@ -28,7 +28,7 @@ const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:stri
 
 
 const STORAGE_PREFIX="riwaq:module:";
-const DB_KINDS=new Set<Kind>(["hours","lessons","reports","payments"]);
+const DB_KINDS=new Set<Kind>(["hours","lessons","reports","payments","paths"]);
 const readLocal=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
 const writeCloudRows=async(kind:Kind,rows:Row[])=>{
   const {data:user}=await supabase.auth.getUser();
@@ -96,6 +96,27 @@ export default function ManagementModule({kind}:{kind:Kind}){
         return;
       }
 
+      if(kind==="paths"){
+        const [pathResult,stageResult]=await Promise.all([
+          supabase.from("educational_paths").select("id,title,description,category,stage_name,author_or_source,color,total_units_or_pages,status,legacy_id").order("title"),
+          supabase.from("educational_path_stages").select("path_id").order("sort_order")
+        ]);
+        if(cancelled)return;
+        if(pathResult.error){setNotice(pathResult.error.message);setRows([]);setLoadingState(false);return}
+        const stageCounts:Record<string,number>={};
+        (stageResult.data||[]).forEach((s:any)=>{stageCounts[s.path_id]=(stageCounts[s.path_id]||0)+1});
+        setRows((pathResult.data||[]).map((p:any)=>({
+          id:p.id,
+          title:p.title,
+          subtitle:p.description||p.stage_name||"بدون وصف",
+          status:p.status==="active"?"نشط":"مؤرشف",
+          value:`${Number(p.total_units_or_pages||0)} وحدة`,
+          date:"",
+          extra:JSON.stringify({...p,stage_count:stageCounts[p.id]||0})
+        })));
+        if(!cancelled){setHydrated(true);setLoadingState(false)}
+        return;
+      }
       if(kind==="payments"){
         const [paymentResult,studentResult]=await Promise.all([
           supabase.from("payments").select("id,student_id,student_name,month_year,billing_period,amount,amount_paid,total_due,currency_code,status,payment_method,payment_date,due_date,notes,hourly_rate,agreed_hours,actual_hours,total_hours_billed,legacy_student_id").order("month_year",{ascending:false}).order("student_name"),
@@ -222,11 +243,23 @@ export default function ManagementModule({kind}:{kind:Kind}){
     if(kind==="alerts") return [String(rows.filter(r=>r.status.includes("نشط")).length),"0","0","0"];
     if(kind==="lessons") return [String(rows.length),rows.reduce((n,r)=>n+(parseFloat(r.extra||"0")||0),0).toFixed(1)+" ساعة",String(rows.filter(r=>r.status.includes("منجز")).length),String(rows.filter(r=>r.status.includes("معلق")).length)];
     if(kind==="my-calendar") return ["0","0","—","0"];
-    if(kind==="paths") return [String(rows.filter(r=>r.status.includes("نشط")).length),String(rows.length),"0","0"];
+    if(kind==="paths"){
+      const paths=rows.map(r=>parseRowJson(r.extra));
+      return [String(rows.filter(r=>r.status.includes("نشط")).length),String(rows.length),String(paths.reduce((n,p)=>n+Number(p.stage_count||0),0)),String(paths.reduce((n,p)=>n+Number(p.total_units_or_pages||0),0))];
+    }
     return ["العربية","Africa/Cairo","30 دقيقة","نشط"];
   },[kind,rows]);
 
   const start=(row?:Row)=>{
+    if(kind==="paths"){
+      const p=row?parseRowJson(row.extra):{};
+      setEditing(row||null);
+      setForm(row
+        ? {title:row.title,subtitle:row.subtitle,status:row.status,value:String(p.total_units_or_pages??"0"),date:"",extra:String(p.author_or_source||"")}
+        : {title:"",subtitle:"",status:"نشط",value:"0",date:"",extra:""});
+      setOpen(true);setNotice("");
+      return;
+    }
     if(kind==="payments"){
       const p=row?parseRowJson(row.extra):{};
       setPaymentStudentId(String(p.student_id||""));
@@ -251,6 +284,21 @@ export default function ManagementModule({kind}:{kind:Kind}){
   };
   const close=()=>{setOpen(false);setEditing(null)};
   const submit=async()=>{
+    if(kind==="paths"){
+      if(!form.title.trim())return setNotice("اكتب اسم المسار.");
+      const total=Number(form.value||0);
+      if(!Number.isFinite(total)||total<0||!Number.isInteger(total))return setNotice("عدد الوحدات يجب أن يكون رقمًا صحيحًا.");
+      const {data:user}=await supabase.auth.getUser();
+      if(!user.user)return setNotice("انتهت جلسة الدخول.");
+      const previous=editing?parseRowJson(editing.extra):{};
+      const payload={teacher_id:user.user.id,title:form.title.trim(),description:form.subtitle.trim()||null,category:previous.category||null,stage_name:previous.stage_name||null,author_or_source:form.extra.trim()||previous.author_or_source||null,color:previous.color||null,total_units_or_pages:total,status:form.status==="نشط"?"active":"archived",legacy_id:previous.legacy_id||null,legacy_data:previous.legacy_data||previous};
+      const result=editing?await supabase.from("educational_paths").update(payload).eq("id",editing.id).select("id").single():await supabase.from("educational_paths").insert(payload).select("id").single();
+      if(result.error)return setNotice(result.error.message);
+      close();setNotice(editing?"تم تحديث المسار بنجاح.":"تمت إضافة المسار بنجاح.");
+      const refreshed=await supabase.from("educational_paths").select("id,title,description,category,stage_name,author_or_source,color,total_units_or_pages,status,legacy_id").order("title");
+      if(!refreshed.error)setRows((refreshed.data||[]).map((p:any)=>({id:p.id,title:p.title,subtitle:p.description||p.stage_name||"بدون وصف",status:p.status==="active"?"نشط":"مؤرشف",value:`${Number(p.total_units_or_pages||0)} وحدة`,date:"",extra:JSON.stringify({...p})})));
+      return;
+    }
     if(kind==="payments"){
       if(!form.title.trim())return setNotice("اكتب اسم الطالب.");
       const amount=Number(form.value);
@@ -324,6 +372,13 @@ export default function ManagementModule({kind}:{kind:Kind}){
     setNotice(editing?"تم تحديث العنصر بنجاح.":"تمت الإضافة بنجاح.");
   };
   const remove=async(id:string)=>{
+    if(kind==="paths"){
+      if(!confirm("هل تريد حذف هذا المسار؟"))return;
+      const {error}=await supabase.from("educational_paths").delete().eq("id",id);
+      if(error){setNotice(error.message);return}
+      setRows(v=>v.filter(x=>x.id!==id));setNotice("تم حذف المسار.");
+      return;
+    }
     if(kind==="payments"){
       if(!confirm("هل تريد حذف هذه الدفعة؟"))return;
       const {error}=await supabase.from("payments").delete().eq("id",id);
