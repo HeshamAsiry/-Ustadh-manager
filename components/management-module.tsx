@@ -68,6 +68,8 @@ export default function ManagementModule({kind}:{kind:Kind}){
   const [rows,setRows]=useState<Row[]>([]),[query,setQuery]=useState(""),[tab,setTab]=useState(0),[loadingState,setLoadingState]=useState(true),[hydrated,setHydrated]=useState(false);
   const [open,setOpen]=useState(false),[editing,setEditing]=useState<Row|null>(null),[notice,setNotice]=useState("");
   const [form,setForm]=useState({title:"",subtitle:"",status:"نشط",value:"",date:"",extra:""});
+  const [paymentStudentId,setPaymentStudentId]=useState("");
+  const [paymentStudents,setPaymentStudents]=useState<{id:string;full_name:string}[]>([]);
 
 
   useEffect(()=>{
@@ -94,7 +96,13 @@ export default function ManagementModule({kind}:{kind:Kind}){
       }
 
       if(kind==="payments"){
-        const {data:payments,error}=await supabase.from("payments").select("id,student_id,student_name,month_year,billing_period,amount,amount_paid,total_due,currency_code,status,payment_method,payment_date,due_date,notes,hourly_rate,agreed_hours,actual_hours,total_hours_billed,legacy_student_id").order("month_year",{ascending:false}).order("student_name");
+        const [paymentResult,studentResult]=await Promise.all([
+          supabase.from("payments").select("id,student_id,student_name,month_year,billing_period,amount,amount_paid,total_due,currency_code,status,payment_method,payment_date,due_date,notes,hourly_rate,agreed_hours,actual_hours,total_hours_billed,legacy_student_id").order("month_year",{ascending:false}).order("student_name"),
+          supabase.from("students").select("id,full_name").neq("status","archived").order("full_name")
+        ]);
+        const payments=paymentResult.data;
+        const error=paymentResult.error;
+        if(!cancelled)setPaymentStudents((studentResult.data||[]) as {id:string;full_name:string}[]);
         if(cancelled)return;
         if(error){setNotice(error.message);setRows([]);setLoadingState(false);return}
         const paymentRows=(payments||[]).map((p:any)=>({
@@ -218,6 +226,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
   const start=(row?:Row)=>{
     if(kind==="payments"){
       const p=row?parseRowJson(row.extra):{};
+      setPaymentStudentId(String(p.student_id||""));
       setEditing(row||null);
       setForm(row
         ? {title:row.title,subtitle:row.subtitle,status:row.status,value:String(p.amount??""),date:row.date||"",extra:String(p.amount_paid??"")}
@@ -248,10 +257,11 @@ export default function ManagementModule({kind}:{kind:Kind}){
       const {data:user}=await supabase.auth.getUser();
       if(!user.user)return setNotice("انتهت جلسة الدخول.");
       const previous=editing?parseRowJson(editing.extra):{};
+      const selectedPaymentStudent=paymentStudents.find(s=>s.id===paymentStudentId);
       const payload={
         teacher_id:user.user.id,
-        student_id:previous.student_id||null,
-        student_name:form.title.trim(),
+        student_id:paymentStudentId||previous.student_id||null,
+        student_name:(selectedPaymentStudent?.full_name||form.title.trim()),
         legacy_student_id:previous.legacy_student_id||null,
         billing_period:previous.billing_period||null,
         month_year:month,
@@ -339,21 +349,38 @@ export default function ManagementModule({kind}:{kind:Kind}){
     <section className="management-panel">
       <header><div><span className="panel-kicker">رواق / {c.title}</span><h2>{c.tabs[tab]}</h2><p>{filtered.length} عنصر ظاهر</p></div><div className="management-tools"><label><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="بحث..."/></label><button className="secondary-button"><Filter size={15}/> تصفية <ChevronDown size={14}/></button></div></header>
       {loadingState?<div className="management-empty"><div><Icon size={28}/></div><h3>جارٍ تحميل البيانات</h3><p>يتم جلب البيانات من قاعدة البيانات...</p></div>:filtered.length===0?<div className="management-empty"><div><Icon size={28}/></div><h3>لا توجد بيانات بعد</h3><p>ابدأ بإضافة أول عنصر من الزر الموجود أعلى الصفحة، وسيظهر هنا مباشرة.</p><button className="primary-button" onClick={()=>start()}><Plus size={16}/> {c.primary}</button></div>:
-      <div className="management-table-wrap"><table className="management-table"><thead><tr>{c.columns.map(x=><th key={x}>{x}</th>)}<th></th></tr></thead><tbody>{filtered.map(r=><tr key={r.id}><td><div className="table-title"><span className="table-icon"><Icon size={16}/></span><div><strong>{r.title}</strong><small>{r.subtitle}</small></div></div></td><td>{r.value||r.extra||"—"}</td><td>{r.date||"هذا الشهر"}</td><td><span className={`management-status ${/مكتمل|منجز|جاهز|مفعل|نشط/.test(r.status)?"done":""}`}>{r.status}</span></td><td><div className="row-actions"><button onClick={()=>start(r)} title="تعديل"><Pencil size={15}/></button><button onClick={()=>remove(r.id)} title="حذف"><Trash2 size={15}/></button><button title="المزيد"><MoreHorizontal size={15}/></button></div></td></tr>)}</tbody></table></div>}
+      <div className="management-table-wrap"><table className="management-table"><thead><tr>{c.columns.map(x=><th key={x}>{x}</th>)}<th></th></tr></thead><tbody>{filtered.map(r=><tr key={r.id}><td><div className="table-title"><span className="table-icon"><Icon size={16}/></span><div><strong>{r.title}</strong><small>{r.subtitle}</small></div></div></td><td>{r.value||r.extra||"—"}</td><td>{r.date||"هذا الشهر"}</td><td><span className={`management-status ${/مكتمل|منجز|جاهز|مفعل|نشط|مدفوعة/.test(r.status)?"done":""}`}>{r.status}</span></td><td><div className="row-actions"><button onClick={()=>start(r)} title="تعديل"><Pencil size={15}/></button><button onClick={()=>remove(r.id)} title="حذف"><Trash2 size={15}/></button><button title="المزيد"><MoreHorizontal size={15}/></button></div></td></tr>)}</tbody></table></div>}
     </section>
 
     {open&&<div className="management-modal-backdrop"><section className="management-modal">
       <header><div><span className="modal-icon"><Icon size={18}/></span><div><h2>{editing?"تعديل العنصر":c.primary}</h2><p>{c.title}</p></div></div><button onClick={close}><X size={19}/></button></header>
       <div className="management-form">
-        <label>العنوان<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="اكتب العنوان"/></label>
-        <label>التفاصيل<textarea value={form.subtitle} onChange={e=>setForm({...form,subtitle:e.target.value})} placeholder="تفاصيل إضافية"/></label>
-        <div className="two-fields">
-          <label>الحالة<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option>نشط</option><option>قادم</option><option>مكتمل</option><option>منجز</option><option>مسودة</option><option>معلق</option><option>مفعل</option><option>جاهز</option></select></label>
-          <label>{kind==="payments"?"المبلغ":"القيمة"}<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})} placeholder={kind==="payments"?"0":"—"}/></label>
-        </div>
-        {(kind==="lessons"||kind==="alerts"||kind==="my-calendar"||kind==="reports")&&<label>التاريخ<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>}
-        {(kind==="lessons"||kind==="reports"||kind==="exams")&&<label>ملاحظات إضافية<textarea value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>}
-        {kind==="settings"&&<label>القيمة الجديدة<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/></label>}
+        {kind==="payments"?<>
+          <label>الطالب
+            <select value={paymentStudentId} onChange={e=>{setPaymentStudentId(e.target.value);const s=paymentStudents.find(x=>x.id===e.target.value);if(s)setForm(v=>({...v,title:s.full_name}))}}>
+              <option value="">بدون ربط بطالب حالي</option>
+              {paymentStudents.map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}
+            </select>
+          </label>
+          <label>اسم الطالب<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="اسم الطالب في السجل"/></label>
+          <label>الفترة الشهرية<input type="month" value={form.subtitle} onChange={e=>setForm({...form,subtitle:e.target.value})}/></label>
+          <div className="two-fields">
+            <label>إجمالي المبلغ<input type="number" min="0" step="0.01" value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/></label>
+            <label>المبلغ المدفوع<input type="number" min="0" step="0.01" value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>
+          </div>
+          <label>الحالة<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option>غير مدفوعة</option><option>مدفوعة جزئيًا</option><option>مدفوعة</option></select></label>
+          <label>تاريخ الدفع<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>
+        </>:<>
+          <label>العنوان<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="اكتب العنوان"/></label>
+          <label>التفاصيل<textarea value={form.subtitle} onChange={e=>setForm({...form,subtitle:e.target.value})} placeholder="تفاصيل إضافية"/></label>
+          <div className="two-fields">
+            <label>الحالة<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option>نشط</option><option>قادم</option><option>مكتمل</option><option>منجز</option><option>مسودة</option><option>معلق</option><option>مفعل</option><option>جاهز</option></select></label>
+            <label>القيمة<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})} placeholder="—"/></label>
+          </div>
+          {(kind==="lessons"||kind==="alerts"||kind==="my-calendar"||kind==="reports")&&<label>التاريخ<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>}
+          {(kind==="lessons"||kind==="reports"||kind==="exams")&&<label>ملاحظات إضافية><textarea value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>}
+          {kind==="settings"&&<label>القيمة الجديدة<input value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/></label>}
+        </>}
       </div>
       <footer><button onClick={close}>إلغاء</button><button className="save" onClick={submit}><CheckCircle2 size={16}/> حفظ</button></footer>
     </section></div>}
