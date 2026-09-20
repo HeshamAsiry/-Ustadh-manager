@@ -364,7 +364,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
         const minutes=Number.parseInt(value,10);
         if(!Number.isFinite(minutes)||minutes<0)return setNotice("اكتب مدة تذكير صحيحة بالدقائق.");
         value=String(minutes);
-      }else if(!value){return setNotice("اكتب قيمة الإعداد.");}
+      }else if(!value){return setNotice("اكتب قيمة الإعداد.");}else if(editing.id==="timezone"){try{new Intl.DateTimeFormat("en-US",{timeZone:value}).format();}catch{return setNotice("المنطقة الزمنية غير صالحة.");}}
       const nextSettings={...settings,[settingKey]:editing.id==="reminder"?Number(value):value};
       const {error}=await supabase.from("user_data").update({settings:nextSettings}).eq("user_id",user.user.id);
       if(error)return setNotice(error.message);
