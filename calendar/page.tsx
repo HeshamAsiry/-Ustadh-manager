@@ -29,6 +29,7 @@ type Appointment = {
   duration: number;
   status: string;
   eventType: "lesson" | "personal";
+  notes: string | null;
 };
 type FormState = {
   date: string;
@@ -105,7 +106,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setLoading(true);
     const {data:user}=await supabase.auth.getUser();
     if(!user.user){setMessage("انتهت جلسة الدخول.");setLoading(false);return}
-    let eventQuery=supabase.from("events").select("id,student_id,title,starts_at,ends_at,status,event_type").order("starts_at");
+    let eventQuery=supabase.from("events").select("id,student_id,title,starts_at,ends_at,status,event_type,notes").order("starts_at");
     if(scope==="lessons")eventQuery=eventQuery.eq("event_type","lesson");
     if(scope==="personal")eventQuery=eventQuery.eq("event_type","personal");
     const [studentResult,eventResult,userDataResult]=await Promise.all([
@@ -141,7 +142,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const parts=zonedParts(e.starts_at,tz), endParts=zonedParts(e.ends_at,tz);
         const duration=Math.max(0,Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000));
         const code=primary?.country_code||"";
-        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType};
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType,notes:e.notes||null};
       }));
     }
     setLoading(false);
@@ -209,7 +210,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
       status:form.status,
       is_makeup:false,
       reminder_minutes:30,
-      notes:null
+      notes:editingId?(appointments.find(a=>a.id===editingId)?.notes??null):null
     };
     let eventId=editingId;
     const result=editingId
