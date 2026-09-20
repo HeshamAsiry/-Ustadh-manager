@@ -125,27 +125,13 @@ export default function CalendarPage(){
         participantsByEvent[row.event_id].push(row.student_id);
       });
       setAppointments((eventResult.data||[]).map((e:any)=>{
-        const ids=(participantsByEvent[e.id]&&participantsByEvent[e.id].length?participantsByEvent[e.id]:[e.student_id]).filter(Boolean);
-        const names=ids.map((id:string)=>byId[id]?.full_name).filter(Boolean) as string[];
+        const ids=(participantsByEvent[e.id]&&participantsByEvent[e.id].length?participantsByEvent[e.id]:[e.student_id]).filter(Boolean) as string[];
+        const names=ids.map(id=>byId[id]?.full_name).filter(Boolean) as string[];
         const primary=ids[0]?byId[ids[0]]:undefined;
         const parts=zonedParts(e.starts_at,tz), endParts=zonedParts(e.ends_at,tz);
         const duration=Math.max(0,Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000));
         const code=primary?.country_code||"";
-        return {
-          id:e.id,
-          date:parts.date,
-          time:parts.time,
-          end:endParts.time,
-          studentId:e.student_id||ids[0]||"",
-          studentIds:ids,
-          student:names.length>1?names.join("، "):(names[0]||"طالب محذوف"),
-          country:countryName(code),
-          countryCode:code,
-          timezone:primary?.timezone||"Africa/Cairo",
-          subject:e.title||"القرآن الكريم",
-          duration,
-          status:e.status
-        };
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id||ids[0]||"",studentIds:ids,student:names.length>1?names.join("، "):(names[0]||"طالب محذوف"),country:countryName(code),countryCode:code,timezone:primary?.timezone||"Africa/Cairo",subject:e.title||"القرآن الكريم",duration,status:e.status};
       }));
     }
     setLoading(false);
@@ -325,3 +311,14 @@ export default function CalendarPage(){
       <header><div><span>إدارة الموعد</span><h2>{editingId?"تعديل الموعد":"إضافة موعد جديد"}</h2></div><button onClick={()=>setModalOpen(false)}><X size={19}/></button></header>
       <div className="modal-grid">
         <label>اسم الطالب<select value={form.studentId} onChange={e=>setForm({...form,studentId:e.target.value})}>{students.map(s=><option key={s.id} value={s.id}>{countryFlag(s.country_code||"")} {s.full_name}</option>)}</select></label>
+        <label>التاريخ<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>
+        <label>الوقت بتوقيت المعلم<input type="time" value={form.time} onChange={e=>setForm({...form,time:e.target.value})}/><span className="time-helper">{formatTime12(form.time)}</span></label>
+        <label>المدة<select value={form.duration} onChange={e=>setForm({...form,duration:Number(e.target.value)})}><option value={30}>30 دقيقة</option><option value={45}>45 دقيقة</option><option value={60}>60 دقيقة</option><option value={90}>90 دقيقة</option><option value={120}>120 دقيقة</option></select></label>
+        <label>المادة<select value={form.subject} onChange={e=>setForm({...form,subject:e.target.value})}><option>القرآن الكريم</option><option>العربية</option><option>التجويد</option><option>الدراسات الإسلامية</option>{subjects.filter(s=>!["القرآن الكريم","العربية","التجويد","الدراسات الإسلامية"].includes(s)).map(s=><option key={s}>{s}</option>)}</select></label>
+        <label>الحالة<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="scheduled">مؤكد</option><option value="pending">في الانتظار</option><option value="completed">مكتملة</option><option value="cancelled">ملغاة</option></select></label>
+      </div>
+      <div className="modal-preview"><span>توقيت الطالب المتوقع</span><strong>{(() => { const s=students.find(x=>x.id===form.studentId); return s?formatTime12(zonedParts(teacherWallClockToUtc(form.date,form.time,teacherTimezone).toISOString(),s.timezone).time):"—"; })()}</strong><small>{(() => { const s=students.find(x=>x.id===form.studentId); return s?countryName(s.country_code||"")+" · "+s.timezone+" · نهاية الموعد "+formatTime12(endTime(form.time,form.duration))+" بتوقيت المعلم":"اختر طالبًا"; })()}</small></div>
+      <footer><button className="cancel" onClick={()=>setModalOpen(false)}>إلغاء</button><button className="save" onClick={saveAppointment} disabled={!students.length}><Check size={17}/> حفظ الموعد</button></footer>
+    </section></div>}
+  </main>;
+}
