@@ -33,6 +33,7 @@ const durationHours=(e:EventRow)=>Math.max(0,(new Date(e.ends_at).getTime()-new 
 export default function DashboardPage(){
   const [students,setStudents]=useState<Student[]>([]);
   const [events,setEvents]=useState<EventRow[]>([]);
+  const [monthEvents,setMonthEvents]=useState<EventRow[]>([]);
   const [teacherTimezone,setTeacherTimezone]=useState("Africa/Cairo");
   const [loading,setLoading]=useState(true);
   const [signingOut,setSigningOut]=useState(false);
@@ -61,7 +62,7 @@ export default function DashboardPage(){
     ]);
     if(s.error) setMessage(s.error.message); else setStudents((s.data||[]) as Student[]);
     if(d.error) setMessage(d.error.message); else setEvents((d.data||[]) as EventRow[]);
-    if(m.error) setMessage(m.error.message);
+    if(m.error) setMessage(m.error.message); else setMonthEvents((m.data||[]) as EventRow[]);
     setLoading(false);
   };
 
@@ -76,8 +77,8 @@ export default function DashboardPage(){
   const totalTodayHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
   const completedToday=todayEvents.filter(e=>e.status==="completed").length;
   const personalToday=allDayEvents.filter(e=>e.event_type==="personal"&&e.status!=="cancelled").length;
-  const monthTotalHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
-  const monthCompleted=todayEvents.filter(e=>e.status==="completed").length;
+  const monthTotalHours=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
+  const monthCompleted=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").length;
   const monthLabel=new Intl.DateTimeFormat("ar-EG",{month:"long",year:"numeric"}).format(new Date(today+"T12:00:00"));
   const todayLabel=formatDate(today);
 
