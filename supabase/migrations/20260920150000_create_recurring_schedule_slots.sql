@@ -138,6 +138,19 @@ cross join lateral jsonb_array_elements_text(coalesce(x->'studentIds','[]'::json
 join public.students s on s.teacher_id=u.user_id and s.legacy_id=sid.legacy_student_id
 on conflict do nothing;
 
+-- Re-link group rules using the current relational group id after participant migration.
+update public.recurring_schedule_slots r
+set group_id = x.group_id
+from (
+  select rss.recurring_slot_id, (array_agg(s.group_id))[1] as group_id
+  from public.recurring_slot_students rss
+  join public.students s on s.id = rss.student_id
+  where s.group_id is not null
+  group by rss.recurring_slot_id
+  having count(*) = count(s.group_id) and count(distinct s.group_id) = 1
+) x
+where r.id = x.recurring_slot_id and r.group_id is null;
+
 -- Backfill personal recurring schedules, one row per weekday.
 insert into public.recurring_schedule_slots (
   teacher_id, source_type, legacy_id, title, day_of_week, start_time, duration_minutes,
