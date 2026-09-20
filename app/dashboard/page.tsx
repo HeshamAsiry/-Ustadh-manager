@@ -29,6 +29,7 @@ const partsInZone=(iso:string,timezone:string)=>{
 const formatTime=(iso:string,timezone:string)=>{const p=partsInZone(iso,timezone);const h=Number(p.time.slice(0,2));return (h%12||12)+":"+p.time.slice(3)+" "+(h>=12?"م":"ص");};
 const formatDate=(date:string)=>new Intl.DateTimeFormat("ar-EG",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).format(new Date(date+"T12:00:00"));
 const durationHours=(e:EventRow)=>Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
+const nextLocalDate=(date:string)=>{const d=new Date(date+"T12:00:00");d.setDate(d.getDate()+1);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
 
 export default function DashboardPage(){
   const [students,setStudents]=useState<Student[]>([]);
@@ -48,7 +49,7 @@ export default function DashboardPage(){
     setTeacherTimezone(tz);
     const today=partsInZone(new Date().toISOString(),tz).date;
     const startOfDay=wallClockToUtc(today,"00:00",tz).toISOString();
-    const endOfDay=wallClockToUtc(partsInZone(new Date(wallClockToUtc(today,"00:00",tz).getTime()+86400000).toISOString(),tz).date,"00:00",tz).toISOString();
+    const endOfDay=wallClockToUtc(nextLocalDate(today),"00:00",tz).toISOString();
     const monthStart=today.slice(0,7)+"-01";
     const nextMonthDate=new Date(monthStart+"T12:00:00");
     nextMonthDate.setMonth(nextMonthDate.getMonth()+1);
@@ -77,8 +78,7 @@ export default function DashboardPage(){
   const totalTodayHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
   const completedToday=todayEvents.filter(e=>e.status==="completed").length;
   const personalToday=allDayEvents.filter(e=>e.event_type==="personal"&&e.status!=="cancelled").length;
-  const monthTotalHours=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
-  const monthCompleted=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").length;
+  const monthTotalHours=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);  const monthCompleted=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").length;
   const monthLabel=new Intl.DateTimeFormat("ar-EG",{month:"long",year:"numeric"}).format(new Date(today+"T12:00:00"));
   const todayLabel=formatDate(today);
 
@@ -97,7 +97,6 @@ export default function DashboardPage(){
       </nav>
       <div className="sidebar-bottom"><a className="nav-item" href="/settings"><Settings size={18}/><span>الإعدادات</span></a><button className="nav-item logout" onClick={signOut} disabled={signingOut}><LogOut size={18}/><span>{signingOut?"جارٍ الخروج...":"تسجيل الخروج"}</span></button></div>
     </aside>
-
     <section className="dashboard-content">
       <header className="topbar"><div><p className="eyebrow">لوحة المعلم</p><h1>مقرأة المعلم</h1></div><div className="top-actions"><button className="icon-button" aria-label="التنبيهات"><Bell size={19}/><i/></button><div className="profile-chip"><span className="avatar"><UserRound size={17}/></span><span>المعلم</span></div></div></header>
 
