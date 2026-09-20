@@ -28,6 +28,7 @@ create table if not exists public.payments (
 
 create index if not exists payments_teacher_period_idx on public.payments(teacher_id, month_year);
 create index if not exists payments_teacher_student_idx on public.payments(teacher_id, student_id);
+create index if not exists payments_student_idx on public.payments(student_id);
 
 alter table public.payments enable row level security;
 
