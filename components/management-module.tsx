@@ -198,7 +198,8 @@ export default function ManagementModule({kind}:{kind:Kind}){
           return {id:s.id,title:s.full_name,subtitle:target+" ساعة مقررة",status:pct>=100?"مكتمل":pct>0?"قيد الإنجاز":"لم يبدأ",value:h.toFixed(1)+" / "+target.toFixed(1)+" ساعة",extra:pct.toFixed(0)+"%"};
         }));
       }else{
-        setRows(events.map(e=>{
+        const sourceEvents=kind==="reports"?events.filter(e=>e.status==="completed"):events;
+        setRows(sourceEvents.map(e=>{
           const student=byStudent[e.student_id||""];
           const ids=(participantsByEvent[e.id]?.length?participantsByEvent[e.id]:[e.student_id]).filter(Boolean) as string[];
           const participantNames=ids.map(id=>byStudent[id]?.full_name).filter(Boolean) as string[];
@@ -207,7 +208,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
           const title=kind==="reports"?"تقرير — "+(participantNames.length?participantNames.join("، "):(student?.full_name||"طالب")):e.title;
           const status=kind==="reports"?(report.trim()?"جاهز":"مسودة"):(e.status==="completed"?"منجز":e.status==="pending"?"معلق":e.status==="cancelled"?"ملغى":"قادم");
           const hours=Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
-          return {id:e.id,title,subtitle:participantNames.length?participantNames.join("، "):(student?.full_name||"طالب"),status,value:participantNames.length?participantNames.join("، "):(student?.full_name||"—"),date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):(report||e.title)};
+          return {id:e.id,title,subtitle:participantNames.length?participantNames.join("، "):(student?.full_name||"طالب"),status,value:participantNames.length?participantNames.join("، "):(student?.full_name||"—"),date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):report};
         }));
       }
       if(!cancelled){setHydrated(true);setLoadingState(false)}
@@ -254,6 +255,13 @@ export default function ManagementModule({kind}:{kind:Kind}){
   },[kind,rows]);
 
   const start=(row?:Row)=>{
+    if(kind==="reports"){
+      if(!row){setNotice("اختر حصة مكتملة لإعداد تقريرها.");return}
+      setEditing(row);
+      setForm({title:row.title,subtitle:row.subtitle,status:row.status,value:row.value||"",date:row.date||"",extra:row.extra||""});
+      setOpen(true);setNotice("");
+      return;
+    }
     if(kind==="paths"){
       const p=row?parseRowJson(row.extra):{};
       setEditing(row||null);
@@ -287,6 +295,18 @@ export default function ManagementModule({kind}:{kind:Kind}){
   };
   const close=()=>{setOpen(false);setEditing(null)};
   const submit=async()=>{
+    if(kind==="reports"){
+      if(!editing)return setNotice("اختر تقريرًا أولًا.");
+      const current=await supabase.from("events").select("notes").eq("id",editing.id).single();
+      if(current.error)return setNotice(current.error.message);
+      const notes=parseRowJson(current.data?.notes||undefined);
+      notes.report=form.extra.trim();
+      const result=await supabase.from("events").update({notes}).eq("id",editing.id).select("id").single();
+      if(result.error)return setNotice(result.error.message);
+      close();setNotice(form.extra.trim()?"تم حفظ التقرير.":"تم تحويل التقرير إلى مسودة.");
+      setRows(prev=>prev.map(row=>row.id===editing.id?{...row,status:form.extra.trim()?"جاهز":"مسودة",extra:form.extra.trim()}:row));
+      return;
+    }
     if(kind==="paths"){
       if(!form.title.trim())return setNotice("اكتب اسم المسار.");
       const total=Number(form.value||0);
@@ -382,6 +402,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
     setNotice(editing?"تم تحديث العنصر بنجاح.":"تمت الإضافة بنجاح.");
   };
   const remove=async(id:string)=>{
+    if(kind==="reports"){setNotice("التقارير مرتبطة بالحصة؛ لا تُحذف من هذه الصفحة.");return}
     if(kind==="paths"){
       if(!confirm("هل تريد حذف هذا المسار؟"))return;
       const {error}=await supabase.from("educational_paths").delete().eq("id",id);
