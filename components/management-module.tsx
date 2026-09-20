@@ -195,19 +195,36 @@ export default function ManagementModule({kind}:{kind:Kind}){
     if(kind==="hours"){
       const done=rows.reduce((n,r)=>n+(parseFloat(r.value||"0")||0),0);
       const target=rows.reduce((n,r)=>n+(parseFloat(r.subtitle||"0")||0),0);
-      return [`${target.toFixed(1)} ساعة`,`${done.toFixed(1)} ساعة`,`${Math.max(0,target-done).toFixed(1)} ساعة`,`${rows.length}`];
+      return [target.toFixed(1)+" ساعة",done.toFixed(1)+" ساعة",Math.max(0,target-done).toFixed(1)+" ساعة",String(rows.length)];
     }
-    if(kind==="payments") return ["0","0","0",`${rows.filter(r=>r.status.includes("معلق")).length}`];
-    if(kind==="exams") return [`${rows.length}`,"0","0%","0"];
-    if(kind==="reports") return [`${rows.length}`,`${rows.filter(r=>r.status.includes("جاهز")).length}`,`${rows.filter(r=>r.status.includes("مسودة")).length}`,"0"];
-    if(kind==="alerts") return [`${rows.filter(r=>r.status.includes("نشط")).length}`,"0","0","0"];
-    if(kind==="lessons") return [`${rows.length}`,`${rows.reduce((n,r)=>n+(parseFloat(r.extra||"0")||0),0).toFixed(1)} ساعة`,`${rows.filter(r=>r.status.includes("منجز")).length}`,`${rows.filter(r=>r.status.includes("معلق")).length}`];
+    if(kind==="payments"){
+      const values=rows.map(r=>parseRowJson(r.extra));
+      const totalPaid=values.reduce((n,p)=>n+Number(p.amount_paid||0),0);
+      const totalDue=values.reduce((n,p)=>n+Math.max(0,Number(p.amount||0)-Number(p.amount_paid||0)),0);
+      const currentMonth=new Date().toISOString().slice(0,7);
+      const monthPaid=values.filter(p=>p.month_year===currentMonth).reduce((n,p)=>n+Number(p.amount_paid||0),0);
+      const pending=values.filter(p=>p.status==="unpaid"||p.status==="partial").length;
+      return [totalPaid.toFixed(2),totalDue.toFixed(2),monthPaid.toFixed(2),String(pending)];
+    }
+    if(kind==="exams") return [String(rows.length),"0","0%","0"];
+    if(kind==="reports") return [String(rows.length),String(rows.filter(r=>r.status.includes("جاهز")).length),String(rows.filter(r=>r.status.includes("مسودة")).length),"0"];
+    if(kind==="alerts") return [String(rows.filter(r=>r.status.includes("نشط")).length),"0","0","0"];
+    if(kind==="lessons") return [String(rows.length),rows.reduce((n,r)=>n+(parseFloat(r.extra||"0")||0),0).toFixed(1)+" ساعة",String(rows.filter(r=>r.status.includes("منجز")).length),String(rows.filter(r=>r.status.includes("معلق")).length)];
     if(kind==="my-calendar") return ["0","0","—","0"];
-    if(kind==="paths") return [`${rows.filter(r=>r.status.includes("نشط")).length}`,`${rows.length}`,"0","0"];
+    if(kind==="paths") return [String(rows.filter(r=>r.status.includes("نشط")).length),String(rows.length),"0","0"];
     return ["العربية","Africa/Cairo","30 دقيقة","نشط"];
   },[kind,rows]);
 
   const start=(row?:Row)=>{
+    if(kind==="payments"){
+      const p=row?parseRowJson(row.extra):{};
+      setEditing(row||null);
+      setForm(row
+        ? {title:row.title,subtitle:row.subtitle,status:row.status,value:String(p.amount??""),date:row.date||"",extra:String(p.amount_paid??"")}
+        : {title:"",subtitle:new Date().toISOString().slice(0,7),status:"غير مدفوعة",value:"",date:"",extra:""});
+      setOpen(true);setNotice("");
+      return;
+    }
     if(DB_KINDS.has(kind)){
       if(kind==="lessons"||kind==="hours"||kind==="reports")window.location.href="/students";
       return;
@@ -220,6 +237,48 @@ export default function ManagementModule({kind}:{kind:Kind}){
   };
   const close=()=>{setOpen(false);setEditing(null)};
   const submit=async()=>{
+    if(kind==="payments"){
+      if(!form.title.trim())return setNotice("اكتب اسم الطالب.");
+      const amount=Number(form.value);
+      const amountPaid=Number(form.extra||0);
+      if(!Number.isFinite(amount)||amount<0)return setNotice("اكتب مبلغًا صحيحًا.");
+      if(!Number.isFinite(amountPaid)||amountPaid<0||amountPaid>amount)return setNotice("المبلغ المدفوع غير صحيح.");
+      const month=/^\\d{4}-\\d{2}$/.test(form.subtitle.trim())?form.subtitle.trim():new Date().toISOString().slice(0,7);
+      const status=form.status==="مدفوعة"?"paid":form.status==="مدفوعة جزئيًا"?"partial":"unpaid";
+      const {data:user}=await supabase.auth.getUser();
+      if(!user.user)return setNotice("انتهت جلسة الدخول.");
+      const previous=editing?parseRowJson(editing.extra):{};
+      const payload={
+        teacher_id:user.user.id,
+        student_id:previous.student_id||null,
+        student_name:form.title.trim(),
+        legacy_student_id:previous.legacy_student_id||null,
+        billing_period:previous.billing_period||null,
+        month_year:month,
+        hourly_rate:Number(previous.hourly_rate||0),
+        agreed_hours:Number(previous.agreed_hours||0),
+        actual_hours:Number(previous.actual_hours||0),
+        total_hours_billed:Number(previous.total_hours_billed||0),
+        amount:Number(amount.toFixed(2)),
+        amount_paid:Number(amountPaid.toFixed(2)),
+        total_due:Number(Math.max(0,amount-amountPaid).toFixed(2)),
+        currency_code:previous.currency_code||"USD",
+        status,
+        payment_method:previous.payment_method||null,
+        payment_date:form.date||null,
+        due_date:previous.due_date||null,
+        notes:previous.notes||null,
+        legacy_data:previous.legacy_data||previous
+      };
+      const result=editing
+        ? await supabase.from("payments").update(payload).eq("id",editing.id).select("id").single()
+        : await supabase.from("payments").insert(payload).select("id").single();
+      if(result.error)return setNotice(result.error.message);
+      close();setNotice(editing?"تم تحديث الدفعة بنجاح.":"تم تسجيل الدفعة بنجاح.");
+      const refreshed=await supabase.from("payments").select("id,student_id,student_name,month_year,billing_period,amount,amount_paid,total_due,currency_code,status,payment_method,payment_date,due_date,notes,hourly_rate,agreed_hours,actual_hours,total_hours_billed,legacy_student_id").order("month_year",{ascending:false}).order("student_name");
+      if(!refreshed.error)setRows((refreshed.data||[]).map((p:any)=>({id:p.id,title:p.student_name,subtitle:p.month_year||p.billing_period||"بدون فترة",status:p.status==="paid"?"مدفوعة":p.status==="partial"?"مدفوعة جزئيًا":"غير مدفوعة",value:(Number(p.amount||0).toFixed(2)+" "+(p.currency_code||"")).trim(),date:p.payment_date||p.due_date||"",extra:JSON.stringify(p)})));
+      return;
+    }
     if(kind==="settings"){
       if(!editing)return setNotice("اختر إعدادًا لتعديله.");
       const map:Record<string,string>={language:"primaryLanguage",timezone:"teacherTimeZone",reminder:"notifyMinutesBefore"};
@@ -235,15 +294,12 @@ export default function ManagementModule({kind}:{kind:Kind}){
         const minutes=Number.parseInt(value,10);
         if(!Number.isFinite(minutes)||minutes<0)return setNotice("اكتب مدة تذكير صحيحة بالدقائق.");
         value=String(minutes);
-      }else if(!value){
-        return setNotice("اكتب قيمة الإعداد.");
-      }
+      }else if(!value){return setNotice("اكتب قيمة الإعداد.");}
       const nextSettings={...settings,[settingKey]:editing.id==="reminder"?Number(value):value};
       const {error}=await supabase.from("user_data").update({settings:nextSettings}).eq("user_id",user.user.id);
       if(error)return setNotice(error.message);
       setRows(prev=>prev.map(r=>r.id===editing.id?{...r,value:editing.id==="reminder"?value+" دقيقة":value}:r));
-      close();
-      setNotice("تم حفظ الإعداد بنجاح.");
+      close();setNotice("تم حفظ الإعداد بنجاح.");
       return;
     }
     if(!form.title.trim())return setNotice("اكتب عنوانًا أولًا.");
@@ -252,7 +308,14 @@ export default function ManagementModule({kind}:{kind:Kind}){
     close();
     setNotice(editing?"تم تحديث العنصر بنجاح.":"تمت الإضافة بنجاح.");
   };
-  const remove=(id:string)=>{
+  const remove=async(id:string)=>{
+    if(kind==="payments"){
+      if(!confirm("هل تريد حذف هذه الدفعة؟"))return;
+      const {error}=await supabase.from("payments").delete().eq("id",id);
+      if(error){setNotice(error.message);return}
+      setRows(v=>v.filter(x=>x.id!==id));setNotice("تم حذف الدفعة.");
+      return;
+    }
     if(DB_KINDS.has(kind)){setNotice("هذا السجل مرتبط بالحصة والطالب، ويُعدّل من صفحة الطلاب أو التقويم.");return}
     if(confirm("هل تريد حذف هذا العنصر؟")){
       setRows(v=>v.filter(x=>x.id!==id));
