@@ -21,7 +21,7 @@ export default function MyCalendarPage(){
       </nav>
     </header>
     <section className="my-calendar-content">
-      {view==="calendar" ? <CalendarPage/> : <QuranProgram/>}
+      {view==="calendar" ? <CalendarPage scope="personal"/> : <QuranProgram/>}
     </section>
   </main>
 }
