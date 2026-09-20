@@ -59,11 +59,17 @@ export default function StudentsReference(){
   const start=teacherWallClockToUtc(monthStart,"00:00",tz).toISOString();
   const end=teacherWallClockToUtc(monthEnd,"00:00",tz).toISOString();
   const [s,e]=await Promise.all([
-   supabase.from("students").select("*").order("created_at",{ascending:false}),
+   supabase.from("students").select("*").neq("status","archived").order("created_at",{ascending:false}),
    supabase.from("events").select("id,student_id,starts_at,ends_at,status,notes,title").eq("event_type","lesson").gte("starts_at",start).lt("starts_at",end).order("starts_at",{ascending:false})
   ]);
   if(s.error)setMessage(s.error.message);else setStudents((s.data||[]) as Student[]);
   if(!e.error)setLessons((e.data||[]) as Lesson[]);else setMessage(e.error.message);
+  const eventIds=(e.data||[]).map((x:any)=>x.id);
+  const participantResult=eventIds.length?await supabase.from("event_students").select("event_id,student_id").in("event_id",eventIds):{data:[],error:null};
+  if(participantResult.error)setMessage(participantResult.error.message);
+  const participantMap:Record<string,string[]>={};
+  (participantResult.data||[]).forEach((row:any)=>{if(!participantMap[row.event_id])participantMap[row.event_id]=[];participantMap[row.event_id].push(row.student_id)});
+  setEventParticipants(participantMap);
   setLoading(false);
  };
  useEffect(()=>{void load()},[]);
@@ -71,12 +77,11 @@ export default function StudentsReference(){
   const out:Record<string,number>={};
   lessons.filter(l=>l.status==="completed").forEach(l=>{
    const duration=Math.max(0,(new Date(l.ends_at).getTime()-new Date(l.starts_at).getTime())/3600000);
-   let participants=[l.student_id];
-   try{const parsed=JSON.parse(l.notes||"{}");if(Array.isArray(parsed.participants)&&parsed.participants.length)participants=parsed.participants;}catch{}
-   participants.forEach(id=>out[id]=(out[id]||0)+duration);
+   const participants=eventParticipants[l.id]?.length?eventParticipants[l.id]:[l.student_id];
+   participants.filter(Boolean).forEach(id=>out[id]=(out[id]||0)+duration);
   });
   return out;
- },[lessons]);
+ },[lessons,eventParticipants]);
  const filtered=students.filter(s=>`${s.full_name} ${s.country_code||""}`.toLowerCase().includes(query.toLowerCase()));
  const groupMembersOf=(s:Student)=>s.group_id?students.filter(member=>member.group_id===s.group_id):[s];
  const openStudent=(s?:Student)=>{setEditing(s||null);setStudentMode("single");setGroupName("");setGroupMembers([{full_name:"",age:""},{full_name:"",age:""}]);setStudentForm(s?{full_name:s.full_name,age:String(s.age||""),country_code:s.country_code||"",timezone:s.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,native_language:s.native_language||"",contact_phone:s.contact_phone||"",monthly_hours:String(s.monthly_hours||8),compensation_type:s.compensation_type||"virtual_currency",currency_code:s.currency_code||"EUR",center_name:s.center_name||"",center_number:s.center_number||"",status:s.status||"active",notes:s.notes||""}:emptyStudentForm());setStudentModal(true)};
