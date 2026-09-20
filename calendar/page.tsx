@@ -98,6 +98,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
   const [form,setForm]=useState<FormState>(emptyForm(todayKey));
   const [loading,setLoading]=useState(true);
   const [message,setMessage]=useState("");
+  const [editingParticipantIds,setEditingParticipantIds]=useState<string[]>([]);
   const personalOnly=scope==="personal";
 
   const load=async()=>{
@@ -176,6 +177,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
 
   const openAdd=(date=selectedDate,time="18:00")=>{
     setEditingId(null);
+    setEditingParticipantIds([]);
     setMenuId(null);
     const firstStudent=personalOnly?"":(students[0]?.id||"");
     setForm({...emptyForm(date),time,studentId:firstStudent,title:"",subject:"القرآن الكريم"});
@@ -183,6 +185,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
   };
   const openEdit=(a:Appointment)=>{
     setEditingId(a.id);
+    setEditingParticipantIds(a.studentIds);
     setForm({date:a.date,time:a.time,studentId:a.studentId,subject:a.subject,title:a.eventType==="personal"?a.subject:"",duration:a.duration,status:a.status});
     setModalOpen(true);
     setMenuId(null);
@@ -220,12 +223,15 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     }
     eventId=result.data.id;
     if(!personalOnly){
-      if(editingId)await supabase.from("event_students").delete().eq("event_id",eventId);
-      const participantsResult=await supabase.from("event_students").insert([{event_id:eventId,student_id:student!.id}]);
-      if(participantsResult.error){
-        if(!editingId)await supabase.from("events").delete().eq("id",eventId);
-        setMessage(participantsResult.error.message);
-        return;
+      const preservingGroup=Boolean(editingId&&editingParticipantIds.length>1);
+      if(!preservingGroup){
+        if(editingId)await supabase.from("event_students").delete().eq("event_id",eventId);
+        const participantsResult=await supabase.from("event_students").insert([{event_id:eventId,student_id:student!.id}]);
+        if(participantsResult.error){
+          if(!editingId)await supabase.from("events").delete().eq("id",eventId);
+          setMessage(participantsResult.error.message);
+          return;
+        }
       }
     }
     setModalOpen(false);
@@ -326,7 +332,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     {modalOpen&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setModalOpen(false)}}><section className="appointment-modal" dir="rtl">
       <header><div><span>إدارة الموعد</span><h2>{editingId?"تعديل الموعد":"إضافة موعد جديد"}</h2></div><button onClick={()=>setModalOpen(false)}><X size={19}/></button></header>
       <div className="modal-grid">
-        {personalOnly?<label className="full-field">عنوان الموعد<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="مثال: اجتماع شخصي"/></label>:<label>اسم الطالب<select value={form.studentId} onChange={e=>setForm({...form,studentId:e.target.value})}>{students.map(s=><option key={s.id} value={s.id}>{countryFlag(s.country_code||"")} {s.full_name}</option>)}</select></label>}
+        {personalOnly?<label className="full-field">عنوان الموعد<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="مثال: اجتماع شخصي"/></label>:<label>اسم الطالب<select value={form.studentId} disabled={Boolean(editingId&&editingParticipantIds.length>1)} onChange={e=>setForm({...form,studentId:e.target.value})}>{students.map(s=><option key={s.id} value={s.id}>{countryFlag(s.country_code||"")} {s.full_name}</option>)}</select></label>}
         <label>التاريخ<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>
         <label>الوقت بتوقيت المعلم<input type="time" value={form.time} onChange={e=>setForm({...form,time:e.target.value})}/><span className="time-helper">{formatTime12(form.time)}</span></label>
         <label>المدة<select value={form.duration} onChange={e=>setForm({...form,duration:Number(e.target.value)})}><option value={30}>30 دقيقة</option><option value={45}>45 دقيقة</option><option value={60}>60 دقيقة</option><option value={90}>90 دقيقة</option><option value={120}>120 دقيقة</option></select></label>
