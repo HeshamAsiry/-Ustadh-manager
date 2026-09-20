@@ -30,7 +30,23 @@ type Appointment = {
   status: string;
   eventType: "lesson" | "personal";
   notes: string | null;
+  isRecurring: boolean;
+  recurringSlotId: string | null;
 };
+type RecurringSlot = {
+  id: string;
+  source_type: "lesson" | "personal";
+  title: string;
+  day_of_week: number;
+  start_time: string;
+  duration_minutes: number;
+  timezone: string;
+  active: boolean;
+  reminder_minutes: number;
+  location_or_platform: string | null;
+  notes: string | null;
+};
+
 type FormState = {
   date: string;
   time: string;
@@ -88,6 +104,8 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
   const [view,setView]=useState<ViewMode>("week");
   const [selectedDate,setSelectedDate]=useState(todayKey);
   const [appointments,setAppointments]=useState<Appointment[]>([]);
+  const [recurringSlots,setRecurringSlots]=useState<RecurringSlot[]>([]);
+  const [recurringParticipants,setRecurringParticipants]=useState<Record<string,string[]>>({});
   const [students,setStudents]=useState<Student[]>([]);
   const [teacherTimezone,setTeacherTimezone]=useState("Africa/Cairo");
   const [selectedStudentId,setSelectedStudentId]=useState("");
@@ -109,10 +127,12 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     let eventQuery=supabase.from("events").select("id,student_id,title,starts_at,ends_at,status,event_type,notes").order("starts_at");
     if(scope==="lessons")eventQuery=eventQuery.eq("event_type","lesson");
     if(scope==="personal")eventQuery=eventQuery.eq("event_type","personal");
-    const [studentResult,eventResult,userDataResult]=await Promise.all([
+    const recurringQuery=supabase.from("recurring_schedule_slots").select("id,source_type,title,day_of_week,start_time,duration_minutes,timezone,active,reminder_minutes,location_or_platform,notes").eq("active",true).order("day_of_week").order("start_time");
+    const [studentResult,eventResult,userDataResult,recurringResult]=await Promise.all([
       supabase.from("students").select("id,full_name,country_code,country_name,timezone").neq("status","archived").order("full_name"),
       eventQuery,
-      supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle()
+      supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle(),
+      recurringQuery
     ]);
     if(studentResult.error)setMessage(studentResult.error.message);
     const studentRows=(studentResult.data||[]) as Student[];
@@ -121,6 +141,17 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setTeacherTimezone(tz);
     const teacherToday=zonedParts(new Date().toISOString(),tz).date;
     setTodayKey(teacherToday);
+    const recurringRows=(recurringResult.data||[]) as RecurringSlot[];
+    setRecurringSlots(recurringRows);
+    if(recurringResult.error)setMessage(recurringResult.error.message);
+    const recurringIds=recurringRows.map(row=>row.id);
+    if(recurringIds.length){
+      const recurringParticipantResult=await supabase.from("recurring_slot_students").select("recurring_slot_id,student_id").in("recurring_slot_id",recurringIds);
+      if(recurringParticipantResult.error)setMessage(recurringParticipantResult.error.message);
+      const participantMap:Record<string,string[]>={};
+      (recurringParticipantResult.data||[]).forEach((row:any)=>{if(!participantMap[row.recurring_slot_id])participantMap[row.recurring_slot_id]=[];participantMap[row.recurring_slot_id].push(row.student_id)});
+      setRecurringParticipants(participantMap);
+    }else setRecurringParticipants({});
     if(eventResult.error){setMessage(eventResult.error.message);setAppointments([]);}
     else{
       const byId=Object.fromEntries(studentRows.map(s=>[s.id,s]));
@@ -144,7 +175,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const code=primary?.country_code||"";
         const rawTitle=e.title||"";
         const subject=eventType==="lesson"?(rawTitle.split(" — ")[0]||"القرآن الكريم"):rawTitle||"بدون عنوان";
-        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject,duration,status:e.status,eventType,notes:e.notes||null};
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject,duration,status:e.status,eventType,notes:e.notes||null,isRecurring:false,recurringSlotId:null};
       }));
     }
     setLoading(false);
