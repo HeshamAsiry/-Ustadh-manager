@@ -200,12 +200,14 @@ export default function ManagementModule({kind}:{kind:Kind}){
       }else{
         setRows(events.map(e=>{
           const student=byStudent[e.student_id||""];
+          const ids=(participantsByEvent[e.id]?.length?participantsByEvent[e.id]:[e.student_id]).filter(Boolean) as string[];
+          const participantNames=ids.map(id=>byStudent[id]?.full_name).filter(Boolean) as string[];
           let report="";
           try{report=JSON.parse(e.notes||"{}").report||""}catch{}
-          const title=kind==="reports"?"تقرير — "+(student?.full_name||"طالب"):e.title;
+          const title=kind==="reports"?"تقرير — "+(participantNames.length?participantNames.join("، "):(student?.full_name||"طالب")):e.title;
           const status=kind==="reports"?(report.trim()?"جاهز":"مسودة"):(e.status==="completed"?"منجز":e.status==="pending"?"معلق":e.status==="cancelled"?"ملغى":"قادم");
           const hours=Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
-          return {id:e.id,title,subtitle:student?.full_name||"طالب",status,value:student?.full_name||"—",date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):(report||e.title)};
+          return {id:e.id,title,subtitle:participantNames.length?participantNames.join("، "):(student?.full_name||"طالب"),status,value:participantNames.length?participantNames.join("، "):(student?.full_name||"—"),date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):(report||e.title)};
         }));
       }
       if(!cancelled){setHydrated(true);setLoadingState(false)}
