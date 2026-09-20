@@ -46,11 +46,11 @@ export default function StudentFormEnhancer(){
     const timezoneInput=timezoneLabel?.querySelector<HTMLInputElement>("input");
 
     if(timezoneLabel&&timezoneInput&&!timezoneLabel.querySelector(".rq-timezone-note")){
-      timezoneInput.readOnly=true;
-      timezoneInput.title="يتم تحديد المنطقة الزمنية تلقائيًا عند اختيار الدولة";
+      timezoneInput.readOnly=false;
+      timezoneInput.title="تُقترح المنطقة الزمنية حسب الدولة ويمكن تعديلها يدويًا";
       const note=document.createElement("small");
       note.className="rq-timezone-note";
-      note.textContent="تُحدَّد تلقائيًا حسب الدولة المختارة";
+      note.textContent="تُقترح تلقائيًا حسب الدولة ويمكن تعديلها عند الحاجة";
       timezoneLabel.appendChild(note);
     }
 
