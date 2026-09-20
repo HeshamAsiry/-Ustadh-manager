@@ -29,8 +29,6 @@ type Appointment = {
   duration: number;
   status: string;
   eventType: "lesson" | "personal";
-  startsAt: string;
-  endsAt: string;
 };
 type FormState = {
   date: string;
@@ -142,7 +140,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const parts=zonedParts(e.starts_at,tz), endParts=zonedParts(e.ends_at,tz);
         const duration=Math.max(0,Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000));
         const code=primary?.country_code||"";
-        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType,startsAt:e.starts_at,endsAt:e.ends_at};
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType};
       }));
     }
     setLoading(false);
@@ -163,7 +161,11 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     for(let i=0;i<appointments.length;i++){
       for(let j=i+1;j<appointments.length;j++){
         const a=appointments[i],b=appointments[j];
-        if(new Date(a.startsAt).getTime()<new Date(b.endsAt).getTime()&&new Date(b.startsAt).getTime()<new Date(a.endsAt).getTime())result.push([a.id,b.id]);
+        const aStart=teacherWallClockToUtc(a.date,a.time,teacherTimezone).getTime();
+        const bStart=teacherWallClockToUtc(b.date,b.time,teacherTimezone).getTime();
+        const aEnd=aStart+a.duration*60000;
+        const bEnd=bStart+b.duration*60000;
+        if(aStart<bEnd&&bStart<aEnd)result.push([a.id,b.id]);
       }
     }
     return result;
