@@ -83,7 +83,9 @@ export default function StudentsReference(){
  const updateGroupMember=(index:number,field:keyof GroupMember,value:string)=>setGroupMembers(current=>current.map((member,i)=>i===index?{...member,[field]:value}:member));
  const addGroupMember=()=>setGroupMembers(current=>[...current,{full_name:"",age:""}]);
  const removeGroupMember=(index:number)=>setGroupMembers(current=>current.length>2?current.filter((_,i)=>i!==index):current); const saveStudent=async(e:FormEvent)=>{e.preventDefault();const {data:user}=await supabase.auth.getUser();if(!user.user){setMessage("انتهت جلسة الدخول.");return}
-  const basePayload={...studentForm,age:studentForm.age?Number(studentForm.age):null,monthly_hours:Number(studentForm.monthly_hours||8),teacher_id:user.user.id,notes:studentForm.notes||null};
+  let studentTimezone=studentForm.timezone.trim()||defaultTeacherTimezone;
+  try{new Intl.DateTimeFormat("en-US",{timeZone:studentTimezone}).format();}catch{setMessage("المنطقة الزمنية للطالب غير صالحة.");return}
+  const basePayload={...studentForm,timezone:studentTimezone,age:studentForm.age?Number(studentForm.age):null,monthly_hours:Number(studentForm.monthly_hours||8),teacher_id:user.user.id,notes:studentForm.notes||null};
   if(!editing&&studentMode==="group"){
    const validMembers=groupMembers.filter(member=>member.full_name.trim());
    if(validMembers.length<2){setMessage("أضف طالبين على الأقل لإنشاء مجموعة.");return}
