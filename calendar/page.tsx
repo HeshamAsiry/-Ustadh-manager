@@ -137,7 +137,9 @@ export default function CalendarPage(){
           time:parts.time,
           end:endParts.time,
           studentId:e.student_id||ids[0]||"",
-          studentIds:ids,          student:names.length>1?names.join("، "):(names[0]||"طالب محذوف"),          country:countryName(code),
+          studentIds:ids,
+          student:names.length>1?names.join("، "):(names[0]||"طالب محذوف"),
+          country:countryName(code),
           countryCode:code,
           timezone:primary?.timezone||"Africa/Cairo",
           subject:e.title||"القرآن الكريم",
@@ -275,8 +277,10 @@ export default function CalendarPage(){
 
     <section className="calendar-toolbar">
       <div className="view-switch"><button className={view==="month"?"active":""} onClick={()=>setView("month")}>الشهر</button><button className={view==="week"?"active":""} onClick={()=>setView("week")}>الأسبوع</button><button className={view==="day"?"active":""} onClick={()=>setView("day")}>اليوم</button></div>
-      <div className="date-nav"><button onClick={()=>navigate(1)} aria-label="التالي"><ChevronRight size={17}/></button><strong>{view==="month"?monthTitle(selected):view==="day"?formatArabicDate(selected):formatArabicDate(weekDates[0])+" - "+new Intl.DateTimeFormat("ar-EG",{day:"numeric",month:"long"}).format(weekDates[6])}</strong><button onClick={()=>navigate(-1)} aria-label="السابق"><ChevronLeft size={17}/></button><button className="today-button" onClick={goToday}>اليوم</button></div>      <label className="filter-button"><ListFilter size={17}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="الكل">الكل</option>{subjects.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
+      <div className="date-nav"><button onClick={()=>navigate(1)} aria-label="التالي"><ChevronRight size={17}/></button><strong>{view==="month"?monthTitle(selected):view==="day"?formatArabicDate(selected):formatArabicDate(weekDates[0])+" - "+new Intl.DateTimeFormat("ar-EG",{day:"numeric",month:"long"}).format(weekDates[6])}</strong><button onClick={()=>navigate(-1)} aria-label="السابق"><ChevronLeft size={17}/></button><button className="today-button" onClick={goToday}>اليوم</button></div>
+      <label className="filter-button"><ListFilter size={17}/><select value={filter} onChange={e=>setFilter(e.target.value)}><option value="الكل">الكل</option>{subjects.map(s=><option key={s} value={s}>{s}</option>)}</select></label>
     </section>
+
     {loading?<div className="empty-day">جارٍ تحميل المواعيد والطلاب...</div>:view==="month"&&<section className="month-calendar reference-month">
       <div className="month-weekdays">{days.map(d=><span key={d}>{d}</span>)}</div>
       <div className="month-grid">{calendarCells.map((date,i)=>{
