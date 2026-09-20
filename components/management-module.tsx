@@ -177,17 +177,18 @@ export default function ManagementModule({kind}:{kind:Kind}){
 
       const students=studentsResult.data||[];
       const events=eventsResult.data||[];
+      const eventIds=events.map((e:any)=>e.id);
+      const participantsResult=eventIds.length?await supabase.from("event_students").select("event_id,student_id").in("event_id",eventIds):{data:[],error:null};
+      if(participantsResult.error){setNotice(participantsResult.error.message);setRows([]);setLoadingState(false);return}
+      const participantsByEvent:Record<string,string[]>={};
+      (participantsResult.data||[]).forEach((row:any)=>{if(!participantsByEvent[row.event_id])participantsByEvent[row.event_id]=[];participantsByEvent[row.event_id].push(row.student_id)});
       const byStudent=Object.fromEntries(students.map(s=>[s.id,s]));
       if(kind==="hours"){
         const completed=events.filter(e=>e.status==="completed");
         const done:Record<string,number>={};
         completed.forEach(e=>{
           const h=Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
-          let ids=[e.student_id].filter(Boolean) as string[];
-          try{
-            const parsed=JSON.parse(e.notes||"{}");
-            if(Array.isArray(parsed.participants)&&parsed.participants.length)ids=parsed.participants;
-          }catch{}
+          const ids=(participantsByEvent[e.id]?.length?participantsByEvent[e.id]:[e.student_id]).filter(Boolean) as string[];
           ids.forEach(id=>done[id]=(done[id]||0)+h);
         });
         setRows(students.map(s=>{
