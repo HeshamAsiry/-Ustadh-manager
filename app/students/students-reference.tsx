@@ -47,16 +47,20 @@ export default function StudentsReference(){
   setLoading(true);
   const {data:user}=await supabase.auth.getUser();
   if(!user.user){setMessage("انتهت جلسة الدخول.");setLoading(false);return}
-  const current=new Date();
-  const start=new Date(current.getFullYear(),current.getMonth(),1).toISOString();
-  const end=new Date(current.getFullYear(),current.getMonth()+1,1).toISOString();
-  const [s,e,u]=await Promise.all([
-   supabase.from("students").select("*").order("created_at",{ascending:false}),
-   supabase.from("events").select("id,student_id,starts_at,ends_at,status,notes,title").eq("event_type","lesson").gte("starts_at",start).lt("starts_at",end).order("starts_at",{ascending:false}),
-   supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle()
-  ]);
-  const tz=u.data?.settings?.teacherTimeZone||u.data?.settings?.timezone||defaultTeacherTimezone;
+  const settingsResult=await supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle();
+  const tz=settingsResult.data?.settings?.teacherTimeZone||settingsResult.data?.settings?.timezone||defaultTeacherTimezone;
   setTeacherTimezone(tz);
+  const localNowParts=utcToTeacherParts(new Date().toISOString(),tz);
+  const monthStart=localNowParts.date.slice(0,7)+"-01";
+  const monthEndDate=new Date(monthStart+"T12:00:00");
+  monthEndDate.setMonth(monthEndDate.getMonth()+1);
+  const monthEnd=monthEndDate.getFullYear()+"-"+pad(monthEndDate.getMonth()+1)+"-"+pad(monthEndDate.getDate());
+  const start=teacherWallClockToUtc(monthStart,"00:00",tz).toISOString();
+  const end=teacherWallClockToUtc(monthEnd,"00:00",tz).toISOString();
+  const [s,e]=await Promise.all([
+   supabase.from("students").select("*").order("created_at",{ascending:false}),
+   supabase.from("events").select("id,student_id,starts_at,ends_at,status,notes,title").eq("event_type","lesson").gte("starts_at",start).lt("starts_at",end).order("starts_at",{ascending:false})
+  ]);
   if(s.error)setMessage(s.error.message);else setStudents((s.data||[]) as Student[]);
   if(!e.error)setLessons((e.data||[]) as Lesson[]);else setMessage(e.error.message);
   setLoading(false);
@@ -77,8 +81,7 @@ export default function StudentsReference(){
  const openStudent=(s?:Student)=>{setEditing(s||null);setStudentMode("single");setGroupName("");setGroupMembers([{full_name:"",age:""},{full_name:"",age:""}]);setStudentForm(s?{full_name:s.full_name,age:String(s.age||""),country_code:s.country_code||"",timezone:s.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,native_language:s.native_language||"",contact_phone:s.contact_phone||"",monthly_hours:String(s.monthly_hours||8),compensation_type:s.compensation_type||"virtual_currency",currency_code:s.currency_code||"EUR",center_name:s.center_name||"",center_number:s.center_number||"",status:s.status||"active",notes:s.notes||""}:emptyStudentForm());setStudentModal(true)};
  const updateGroupMember=(index:number,field:keyof GroupMember,value:string)=>setGroupMembers(current=>current.map((member,i)=>i===index?{...member,[field]:value}:member));
  const addGroupMember=()=>setGroupMembers(current=>[...current,{full_name:"",age:""}]);
- const removeGroupMember=(index:number)=>setGroupMembers(current=>current.length>2?current.filter((_,i)=>i!==index):current);
- const saveStudent=async(e:FormEvent)=>{e.preventDefault();const {data:user}=await supabase.auth.getUser();if(!user.user){setMessage("انتهت جلسة الدخول.");return}
+ const removeGroupMember=(index:number)=>setGroupMembers(current=>current.length>2?current.filter((_,i)=>i!==index):current); const saveStudent=async(e:FormEvent)=>{e.preventDefault();const {data:user}=await supabase.auth.getUser();if(!user.user){setMessage("انتهت جلسة الدخول.");return}
   const basePayload={...studentForm,age:studentForm.age?Number(studentForm.age):null,monthly_hours:Number(studentForm.monthly_hours||8),teacher_id:user.user.id,notes:studentForm.notes||null};
   if(!editing&&studentMode==="group"){
    const validMembers=groupMembers.filter(member=>member.full_name.trim());
@@ -94,8 +97,7 @@ export default function StudentsReference(){
   if(!studentForm.full_name.trim()){setMessage("اكتب اسم الطالب أولًا.");return}
   const payload={...basePayload,full_name:studentForm.full_name.trim()};
   const r=editing?await supabase.from("students").update(payload).eq("id",editing.id):await supabase.from("students").insert(payload);
-  if(r.error){setMessage(r.error.message);return}setStudentModal(false);await load();setMessage(editing?"تم تحديث الطالب.":"تمت إضافة الطالب.")};
- const remove=async(s:Student)=>{if(!confirm(`حذف ${s.full_name}؟`))return;const {error}=await supabase.from("students").update({status:"archived"}).eq("id",s.id);if(error)setMessage(error.message);else{await load();setMessage("تمت أرشفة الطالب.")}};
+  if(r.error){setMessage(r.error.message);return}setStudentModal(false);await load();setMessage(editing?"تم تحديث الطالب.":"تمت إضافة الطالب.")}; const remove=async(s:Student)=>{if(!confirm(`حذف ${s.full_name}؟`))return;const {error}=await supabase.from("students").update({status:"archived"}).eq("id",s.id);if(error)setMessage(error.message);else{await load();setMessage("تمت أرشفة الطالب.")}};
  const openLesson=(s:Student)=>{const participants=groupMembersOf(s);setLessonStudent(s);setLessonStudents(participants);setLessonForm({date:isoDate(),time:new Date().toTimeString().slice(0,5),minutes:"60",status:"completed",rating:5,learned:"",report:"",homework:""});setLessonModal(true)};
  const saveLesson=async(e:FormEvent)=>{
   e.preventDefault();
