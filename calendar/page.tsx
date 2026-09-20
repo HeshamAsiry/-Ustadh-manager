@@ -141,6 +141,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setTeacherTimezone(tz);
     const teacherToday=zonedParts(new Date().toISOString(),tz).date;
     setTodayKey(teacherToday);
+    setSelectedDate(current=>current===dateKey(new Date())?teacherToday:current);
     const recurringRows=(recurringResult.data||[]) as RecurringSlot[];
     setRecurringSlots(recurringRows);
     if(recurringResult.error)setMessage(recurringResult.error.message);
@@ -189,7 +190,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
 
   const recurringAppointments=useMemo(()=>{
     const scopeType=scope==="personal"?"personal":scope==="lessons"?"lesson":null;
-    const actualKeys=new Set(appointments.map(a=>`${a.eventType}|${a.date}|${a.time}|${a.duration}|${a.studentIds.slice().sort().join(",")}|${a.subject}`));
+    const actualKeys=new Set(appointments.map(a=>`${a.eventType}|${a.date}|${a.time}|${a.duration}|${a.studentIds.slice().sort().join(",")}`));
     const rangeStart=addDays(new Date(selected.getFullYear(),selected.getMonth(),1),-42);
     const rangeEnd=addDays(new Date(selected.getFullYear(),selected.getMonth()+1,0),42);
     const out:Appointment[]=[];
@@ -207,7 +208,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const student=slot.source_type==="personal"?"موعد شخصي":(names.length?names.join("، "):"حصة متكررة");
         const primary=studentById[studentIds[0]||""];
         const subject=slot.source_type==="personal"?slot.title:slot.title;
-        const appointmentKey=`${slot.source_type}|${local.date}|${local.time}|${slot.duration_minutes}|${studentIds.slice().sort().join(",")}|${subject}`;
+        const appointmentKey=`${slot.source_type}|${local.date}|${local.time}|${slot.duration_minutes}|${studentIds.slice().sort().join(",")}`;
         if(actualKeys.has(appointmentKey))return;
         out.push({
           id:`rec:${slot.id}:${key}`,
@@ -267,6 +268,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setModalOpen(true);
   };
   const openEdit=(a:Appointment)=>{
+    if(a.isRecurring){setMenuId(null);setMessage("هذا الموعد ناتج عن قاعدة أسبوعية، ولا يُعدّل كموعد منفرد.");return}
     setEditingId(a.id);
     setEditingParticipantIds(a.studentIds);
     setForm({date:a.date,time:a.time,studentId:a.studentId,subject:a.subject,title:a.eventType==="personal"?a.subject:"",duration:a.duration,status:a.status});
@@ -281,6 +283,14 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     const start=teacherWallClockToUtc(form.date,form.time,teacherTimezone);
     const end=new Date(start.getTime()+form.duration*60000);
     if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())){setMessage("راجع تاريخ ووقت الموعد.");return}
+    const recurrenceDay=new Date(form.date+"T12:00:00").getDay();
+    const hasRecurringConflict=recurringSlots.some(slot=>{
+      if(!slot.active||slot.day_of_week!==recurrenceDay)return false;
+      const recurrenceStart=teacherWallClockToUtc(form.date,slot.start_time.slice(0,5),slot.timezone||teacherTimezone);
+      const recurrenceEnd=new Date(recurrenceStart.getTime()+slot.duration_minutes*60000);
+      return recurrenceStart.getTime()<end.getTime()&&start.getTime()<recurrenceEnd.getTime();
+    });
+    if(hasRecurringConflict){setMessage("هذا الموعد يتداخل مع قاعدة أسبوعية موجودة في الجدول.");return}
     const payload={
       teacher_id:(await supabase.auth.getUser()).data.user?.id,
       student_id:personalOnly?null:student?.id||null,
@@ -324,6 +334,8 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
   };
 
   const deleteAppointment=async(id:string)=>{
+    const target=displayAppointments.find(a=>a.id===id);
+    if(target?.isRecurring){setMenuId(null);setMessage("هذا الموعد متكرر؛ عطّل قاعدة التكرار بدل إلغائه كموعد منفرد.");return}
     if(!window.confirm("هل تريد إلغاء هذا الموعد؟"))return;
     const result=await supabase.from("events").update({status:"cancelled"}).eq("id",id);
     if(result.error)setMessage(result.error.message);
