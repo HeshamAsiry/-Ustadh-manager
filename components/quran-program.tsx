@@ -63,7 +63,8 @@ export default function QuranProgram(){
   const r=await supabase.from("quran_daily_checklists").upsert({program_id:id,checklist_date:today,listening:checks[0],new_memorization:checks[1],repeat_20:checks[2],recent_linking:checks[3],distant_review:checks[4]},{onConflict:"program_id,checklist_date"});
   if(r.error){setSaving(false);return}
   setSaving(false);setSaved(true);setTimeout(()=>setSaved(false),2000)
- } if(loading)return <main className="quran-page" dir="rtl"><div className="quran-loading">جارٍ تحميل برنامج القرآن...</div></main>;
+};
+ if(loading)return <main className="quran-page" dir="rtl"><div className="quran-loading">جارٍ تحميل برنامج القرآن...</div></main>;
  const plans:Record<Plan,[string,string,string]>={one_year:["سنة واحدة","مكثفة","صفحتان يوميًا"],two_year:["سنتان","متوازنة ⭐","صفحة واحدة يوميًا"],three_year:["3 سنوات","مرنة","نصف صفحة يوميًا"],custom:["مخصصة","حسب اختيارك","تحديد المعدل والأيام"]};
  const setPlan=(k:Plan)=>{const pages=k==="one_year"?2:k==="two_year"?1:k==="three_year"?.5:p.pages_per_day;setP(x=>({...x,plan_type:k,pages_per_day:pages,expected_end_date:endDate(x.start_date,pages,x.days_per_week)}))};
  const checklist=["الاستماع لقارئ متقن","الحفظ الجديد للوجه","تكرار الوجه 20 مرة غيبًا","ربط آخر 5 أوجه","مراجعة الماضي البعيد والتسميع"];
