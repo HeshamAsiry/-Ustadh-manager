@@ -38,7 +38,7 @@ const isoTime=(d=new Date())=>pad(d.getHours())+":"+pad(d.getMinutes());
 const emptyStudentForm=()=>({full_name:"",age:"",country_code:"",timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,native_language:"",contact_phone:"",monthly_hours:"8",compensation_type:"virtual_currency",currency_code:"EUR",center_name:"",center_number:"",status:"active",notes:""});
 
 export default function StudentsReference(){
- const [students,setStudents]=useState<Student[]>([]),[lessons,setLessons]=useState<Lesson[]>([]),[loading,setLoading]=useState(true),[query,setQuery]=useState("");
+ const [students,setStudents]=useState<Student[]>([]),[lessons,setLessons]=useState<Lesson[]>([]),[eventParticipants,setEventParticipants]=useState<Record<string,string[]>>({}),[loading,setLoading]=useState(true),[query,setQuery]=useState("");
  const [teacherTimezone,setTeacherTimezone]=useState(defaultTeacherTimezone);
  const [studentModal,setStudentModal]=useState(false),[editing,setEditing]=useState<Student|null>(null),[lessonModal,setLessonModal]=useState(false),[lessonStudent,setLessonStudent]=useState<Student|null>(null),[lessonStudents,setLessonStudents]=useState<Student[]>([]),[message,setMessage]=useState("");
  const [studentMode,setStudentMode]=useState<"single"|"group">("single"),[groupName,setGroupName]=useState(""),[groupMembers,setGroupMembers]=useState<GroupMember[]>([{full_name:"",age:""},{full_name:"",age:""}]);
