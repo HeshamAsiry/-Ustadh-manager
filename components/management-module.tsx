@@ -70,6 +70,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
   const [form,setForm]=useState({title:"",subtitle:"",status:"نشط",value:"",date:"",extra:""});
   const [paymentStudentId,setPaymentStudentId]=useState("");
   const [paymentStudents,setPaymentStudents]=useState<{id:string;full_name:string}[]>([]);
+  const [paymentCurrency,setPaymentCurrency]=useState("USD");
 
 
   useEffect(()=>{
@@ -207,12 +208,14 @@ export default function ManagementModule({kind}:{kind:Kind}){
     }
     if(kind==="payments"){
       const values=rows.map(r=>parseRowJson(r.extra));
+      const currencies=[...new Set(values.map(p=>String(p.currency_code||"")).filter(Boolean))];
+      const formatMoney=(n:number)=>currencies.length===1?n.toFixed(2)+" "+currencies[0]:(currencies.length>1?"متعدد العملات":n.toFixed(2));
       const totalPaid=values.reduce((n,p)=>n+Number(p.amount_paid||0),0);
       const totalDue=values.reduce((n,p)=>n+Math.max(0,Number(p.amount||0)-Number(p.amount_paid||0)),0);
       const currentMonth=new Date().toISOString().slice(0,7);
       const monthPaid=values.filter(p=>p.month_year===currentMonth).reduce((n,p)=>n+Number(p.amount_paid||0),0);
       const pending=values.filter(p=>p.status==="unpaid"||p.status==="partial").length;
-      return [totalPaid.toFixed(2),totalDue.toFixed(2),monthPaid.toFixed(2),String(pending)];
+      return [formatMoney(totalPaid),formatMoney(totalDue),formatMoney(monthPaid),String(pending)];
     }
     if(kind==="exams") return [String(rows.length),"0","0%","0"];
     if(kind==="reports") return [String(rows.length),String(rows.filter(r=>r.status.includes("جاهز")).length),String(rows.filter(r=>r.status.includes("مسودة")).length),"0"];
@@ -227,6 +230,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
     if(kind==="payments"){
       const p=row?parseRowJson(row.extra):{};
       setPaymentStudentId(String(p.student_id||""));
+      setPaymentCurrency(String(p.currency_code||"USD"));
       setEditing(row||null);
       setForm(row
         ? {title:row.title,subtitle:row.subtitle,status:row.status,value:String(p.amount??""),date:row.date||"",extra:String(p.amount_paid??"")}
@@ -253,7 +257,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
       if(!Number.isFinite(amount)||amount<0)return setNotice("اكتب مبلغًا صحيحًا.");
       if(!Number.isFinite(amountPaid)||amountPaid<0||amountPaid>amount)return setNotice("المبلغ المدفوع غير صحيح.");
       const month=/^\\d{4}-\\d{2}$/.test(form.subtitle.trim())?form.subtitle.trim():new Date().toISOString().slice(0,7);
-      const status=form.status==="مدفوعة"?"paid":form.status==="مدفوعة جزئيًا"?"partial":"unpaid";
+      const status=amountPaid===0?"unpaid":amountPaid>=amount?"paid":"partial";
       const {data:user}=await supabase.auth.getUser();
       if(!user.user)return setNotice("انتهت جلسة الدخول.");
       const previous=editing?parseRowJson(editing.extra):{};
@@ -272,7 +276,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
         amount:Number(amount.toFixed(2)),
         amount_paid:Number(amountPaid.toFixed(2)),
         total_due:Number(Math.max(0,amount-amountPaid).toFixed(2)),
-        currency_code:previous.currency_code||"USD",
+        currency_code:paymentCurrency||previous.currency_code||"USD",
         status,
         payment_method:previous.payment_method||null,
         payment_date:form.date||null,
@@ -368,7 +372,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
             <label>إجمالي المبلغ<input type="number" min="0" step="0.01" value={form.value} onChange={e=>setForm({...form,value:e.target.value})}/></label>
             <label>المبلغ المدفوع<input type="number" min="0" step="0.01" value={form.extra} onChange={e=>setForm({...form,extra:e.target.value})}/></label>
           </div>
-          <label>الحالة<select value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option>غير مدفوعة</option><option>مدفوعة جزئيًا</option><option>مدفوعة</option></select></label>
+          <label>العملة<input value={paymentCurrency} onChange={e=>setPaymentCurrency(e.target.value.toUpperCase().slice(0,5))} placeholder="USD" /></label>
           <label>تاريخ الدفع<input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label>
         </>:<>
           <label>العنوان<input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="اكتب العنوان"/></label>
