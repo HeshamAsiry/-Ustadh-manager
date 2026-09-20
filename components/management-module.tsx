@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+ import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase";
 import {
   Bell, BookOpen, CalendarDays, CheckCircle2, ChevronDown, ClipboardList,
   Clock3, CreditCard, FileText, GraduationCap, Plus, Search, Settings2,
@@ -14,7 +15,7 @@ type Row = { id:string; title:string; subtitle:string; status:string; value?:str
 const icons = { hours: Clock3, payments: CreditCard, exams: GraduationCap, paths: BookOpen, reports: FileText, alerts: Bell, settings: Settings2, "my-calendar": CalendarDays, lessons: ClipboardList };
 
 const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:string[];stats:string[];columns:string[];seed:Row[]}> = {
-  hours:{title:"متابعة الساعات",subtitle:"تابع الساعات الشهرية والحصص المنجزة لكل طالب في مكان واحد.",primary:"تسجيل حصة",tabs:["نظرة عامة","ساعات الطلاب","السجل الشهري"],stats:["إجمالي الساعات","الساعات المنجزة","الساعات المتبقية","الطلاب"],columns:["الطالب","المقرر","الساعات","الإنجاز"],seed:[]},
+  hours:{title:"متابعة الساعات",subtitle:"تابع الساعات الشهرية والحصص المنجزة لكل طالب في مكان واحد.",primary:"تسجيل حصة",tabs:["نظرة عامة","ساعات الطلاب","السجل الشهري"],stats:["الساعات المقررة","الساعات المنجزة","الساعات المتبقية","الطلاب"],columns:["الطالب","المقرر","الساعات","الإنجاز"],seed:[]},
   payments:{title:"المدفوعات",subtitle:"إدارة الحسابات والدفعات الشهرية وحالة كل طالب أو مركز.",primary:"تسجيل دفعة",tabs:["المدفوعات","الحسابات","الملخص"],stats:["إجمالي المدفوع","المستحق","دفعات الشهر","حسابات معلقة"],columns:["الطالب / الجهة","المبلغ","التاريخ","الحالة"],seed:[]},
   exams:{title:"الاختبارات والتقييم",subtitle:"أنشئ التقييمات واربطها بالطلاب وسجّل النتائج مع الاحتفاظ بالسجل.",primary:"إنشاء اختبار",tabs:["الاختبارات","النتائج","بنك التقييم"],stats:["اختبارات نشطة","نتائج مسجلة","متوسط النجاح","تحتاج مراجعة"],columns:["الاختبار","الطالب","النتيجة","الحالة"],seed:[]},
   paths:{title:"المسارات التعليمية",subtitle:"نظّم المواد والمراحل واربط كل طالب بمساره التعليمي.",primary:"إضافة مسار",tabs:["المسارات","المواد","المراحل"],stats:["مسارات نشطة","المواد","الطلاب المرتبطون","المراحل المكتملة"],columns:["المسار","الوصف","الطلاب","الحالة"],seed:[{id:"path-quran",title:"القرآن الكريم",subtitle:"حفظ ومراجعة وتلاوة",status:"نشط",value:"0 طلاب"},{id:"path-arabic",title:"اللغة العربية",subtitle:"قراءة ونحو ومفردات",status:"نشط",value:"0 طلاب"}]},
@@ -22,7 +23,7 @@ const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:stri
   alerts:{title:"التنبيهات والتذكيرات",subtitle:"نظّم تذكيرات الحصص والمراجعات والمهام الشخصية.",primary:"إضافة تنبيه",tabs:["التنبيهات","القادمة","السجل"],stats:["تنبيهات نشطة","اليوم","تمت قراءتها","مؤجلة"],columns:["التنبيه","الموعد","النوع","الحالة"],seed:[]},
   settings:{title:"الإعدادات",subtitle:"إدارة إعدادات الحساب واللغة والمنطقة الزمنية والتنبيهات.",primary:"حفظ التغييرات",tabs:["الحساب","التفضيلات","التنبيهات"],stats:["اللغة","المنطقة الزمنية","التذكيرات","الحساب"],columns:["الإعداد","القيمة","الوصف","الحالة"],seed:[{id:"language",title:"لغة الواجهة",subtitle:"اللغة الأساسية للتطبيق",status:"مفعل",value:"العربية"},{id:"timezone",title:"المنطقة الزمنية",subtitle:"تستخدم لحساب مواعيد الحصص",status:"مفعل",value:"Africa/Cairo"},{id:"reminder",title:"التذكير قبل الحصة",subtitle:"الإشعار التلقائي",status:"مفعل",value:"30 دقيقة"}]},
   "my-calendar":{title:"جدولي الشخصي",subtitle:"أضف مواعيدك الشخصية ومهام الحفظ والمراجعة بجانب حصص الطلاب.",primary:"إضافة موعد",tabs:["اليوم","الأسبوع","المواعيد الشخصية"],stats:["مواعيد اليوم","هذا الأسبوع","وقت متاح","تذكيرات"],columns:["الموعد","التاريخ","الوقت","الحالة"],seed:[]},
-  lessons:{title:"الحصص",subtitle:"سجل الحصص القادمة والمنجزة واربط كل حصة بالطالب والساعات والتقرير.",primary:"تسجيل حصة",tabs:["القادمة","المنجزة","السجل"],stats:["حصص اليوم","هذا الأسبوع","منجزة","معلقة"],columns:["الحصة","الطالب","التاريخ","الحالة"],seed:[]}
+  lessons:{title:"الحصص",subtitle:"سجل الحصص القادمة والمنجزة واربط كل حصة بالطالب والساعات والتقرير.",primary:"تسجيل حصة",tabs:["هذا الشهر","المنجزة","السجل"],stats:["حصص الشهر","ساعات الشهر","منجزة","معلقة"],columns:["الحصة","الطالب","التاريخ","الحالة"],seed:[]}
 };
 
 
@@ -119,7 +120,8 @@ export default function ManagementModule({kind}:{kind:Kind}){
           try{report=JSON.parse(e.notes||"{}").report||""}catch{}
           const title=kind==="reports"?"تقرير — "+(student?.full_name||"طالب"):e.title;
           const status=kind==="reports"?(report.trim()?"جاهز":"مسودة"):(e.status==="completed"?"منجز":e.status==="pending"?"معلق":e.status==="cancelled"?"ملغى":"قادم");
-          return {id:e.id,title,subtitle:student?.full_name||"طالب",status,value:student?.full_name||"—",date:formatArabicDate(e.starts_at,timezone),extra:report||e.title};
+          const hours=Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
+          return {id:e.id,title,subtitle:student?.full_name||"طالب",status,value:student?.full_name||"—",date:formatArabicDate(e.starts_at,timezone),extra:kind==="lessons"?hours.toFixed(1):(report||e.title)};
         }));
       }
       setLoadingState(false);
@@ -137,14 +139,15 @@ export default function ManagementModule({kind}:{kind:Kind}){
 
   const metrics=useMemo(()=>{
     if(kind==="hours"){
-      const total=rows.reduce((n,r)=>n+(Number(r.value)||0),0);
-      return [`${total.toFixed(1)} ساعة`,`${total.toFixed(1)} ساعة`,"—",`${rows.length}`];
+      const done=rows.reduce((n,r)=>n+(parseFloat(r.value||"0")||0),0);
+      const target=rows.reduce((n,r)=>n+(parseFloat(r.subtitle||"0")||0),0);
+      return [`${target.toFixed(1)} ساعة`,`${done.toFixed(1)} ساعة`,`${Math.max(0,target-done).toFixed(1)} ساعة`,`${rows.length}`];
     }
     if(kind==="payments") return ["0","0","0",`${rows.filter(r=>r.status.includes("معلق")).length}`];
     if(kind==="exams") return [`${rows.length}`,"0","0%","0"];
     if(kind==="reports") return [`${rows.length}`,`${rows.filter(r=>r.status.includes("جاهز")).length}`,`${rows.filter(r=>r.status.includes("مسودة")).length}`,"0"];
     if(kind==="alerts") return [`${rows.filter(r=>r.status.includes("نشط")).length}`,"0","0","0"];
-    if(kind==="lessons") return ["0","0",`${rows.filter(r=>r.status.includes("منجز")).length}`,`${rows.filter(r=>r.status.includes("معلق")).length}`];
+    if(kind==="lessons") return [`${rows.length}`,`${rows.reduce((n,r)=>n+(parseFloat(r.extra||"0")||0),0).toFixed(1)} ساعة`,`${rows.filter(r=>r.status.includes("منجز")).length}`,`${rows.filter(r=>r.status.includes("معلق")).length}`];
     if(kind==="my-calendar") return ["0","0","—","0"];
     if(kind==="paths") return [`${rows.filter(r=>r.status.includes("نشط")).length}`,`${rows.length}`,"0","0"];
     return ["العربية","Africa/Cairo","30 دقيقة","نشط"];
