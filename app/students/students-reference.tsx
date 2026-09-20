@@ -10,19 +10,68 @@ type Student={id:string;full_name:string;age:number|null;country_code:string|nul
 type Lesson={id:string;student_id:string;starts_at:string;ends_at:string;status:string;notes:string|null;title:string};
 type GroupMember={full_name:string;age:string};
 const now=new Date();
+const defaultTeacherTimezone="Africa/Cairo";
+const teacherWallClockToUtc = (date:string,time:string,timezone:string) => {
+ const [year,month,day] = date.split("-").map(Number);
+ const [hour,minute] = time.split(":").map(Number);
+ const base = Date.UTC(year,month-1,day,hour,minute);
+ const getOffset = (ms:number) => {
+  const parts = new Intl.DateTimeFormat("en-US",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms));
+  const get = (type:string) => Number(parts.find(part=>part.type===type)?.value||0);
+  const localAsUtc = Date.UTC(get("year"),get("month")-1,get("day"),get("hour"),get("minute"));
+  return Math.round((localAsUtc-ms)/60000);
+ };
+ const first = getOffset(base);
+ const candidate = base-first*60000;
+ const second = getOffset(candidate);
+ return new Date(base-second*60000);
+};
+const utcToTeacherParts = (iso:string,timezone:string) => {
+ const d = new Date(iso);
+ const parts = new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(d);
+ const value = (type:string) => parts.find(part=>part.type===type)?.value||"";
+ return {date:value("year")+"-"+value("month")+"-"+value("day"),time:value("hour")+":"+value("minute")};
+};
 const pad=(n:number)=>String(n).padStart(2,"0");
 const isoDate=(d=new Date())=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const emptyStudentForm=()=>({full_name:"",age:"",country_code:"",timezone:Intl.DateTimeFormat().resolvedOptions().timeZone,native_language:"",contact_phone:"",monthly_hours:"8",compensation_type:"virtual_currency",currency_code:"EUR",center_name:"",center_number:"",status:"active",notes:""});
 
 export default function StudentsReference(){
  const [students,setStudents]=useState<Student[]>([]),[lessons,setLessons]=useState<Lesson[]>([]),[loading,setLoading]=useState(true),[query,setQuery]=useState("");
+ const [teacherTimezone,setTeacherTimezone]=useState(defaultTeacherTimezone);
  const [studentModal,setStudentModal]=useState(false),[editing,setEditing]=useState<Student|null>(null),[lessonModal,setLessonModal]=useState(false),[lessonStudent,setLessonStudent]=useState<Student|null>(null),[lessonStudents,setLessonStudents]=useState<Student[]>([]),[message,setMessage]=useState("");
  const [studentMode,setStudentMode]=useState<"single"|"group">("single"),[groupName,setGroupName]=useState(""),[groupMembers,setGroupMembers]=useState<GroupMember[]>([{full_name:"",age:""},{full_name:"",age:""}]);
  const [studentForm,setStudentForm]=useState(emptyStudentForm());
  const [lessonForm,setLessonForm]=useState({date:isoDate(),time:"16:00",minutes:"60",status:"completed",rating:5,learned:"",report:"",homework:""});
- const load=async()=>{setLoading(true);const start=new Date(now.getFullYear(),now.getMonth(),1).toISOString();const end=new Date(now.getFullYear(),now.getMonth()+1,1).toISOString();const [s,e]=await Promise.all([supabase.from("students").select("*").order("created_at",{ascending:false}),supabase.from("events").select("id,student_id,starts_at,ends_at,status,notes,title").eq("event_type","lesson").gte("starts_at",start).lt("starts_at",end).order("starts_at",{ascending:false})]);if(s.error)setMessage(s.error.message);else setStudents((s.data||[]) as Student[]);if(!e.error)setLessons((e.data||[]) as Lesson[]);setLoading(false)};
+ const load=async()=>{
+  setLoading(true);
+  const {data:user}=await supabase.auth.getUser();
+  if(!user.user){setMessage("انتهت جلسة الدخول.");setLoading(false);return}
+  const current=new Date();
+  const start=new Date(current.getFullYear(),current.getMonth(),1).toISOString();
+  const end=new Date(current.getFullYear(),current.getMonth()+1,1).toISOString();
+  const [s,e,u]=await Promise.all([
+   supabase.from("students").select("*").order("created_at",{ascending:false}),
+   supabase.from("events").select("id,student_id,starts_at,ends_at,status,notes,title").eq("event_type","lesson").gte("starts_at",start).lt("starts_at",end).order("starts_at",{ascending:false}),
+   supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle()
+  ]);
+  const tz=u.data?.settings?.teacherTimeZone||u.data?.settings?.timezone||defaultTeacherTimezone;
+  setTeacherTimezone(tz);
+  if(s.error)setMessage(s.error.message);else setStudents((s.data||[]) as Student[]);
+  if(!e.error)setLessons((e.data||[]) as Lesson[]);else setMessage(e.error.message);
+  setLoading(false);
+ };
  useEffect(()=>{void load()},[]);
- const hours=useMemo(()=>{const out:Record<string,number>={};lessons.filter(l=>l.status==="completed").forEach(l=>out[l.student_id]=(out[l.student_id]||0)+Math.max(0,(new Date(l.ends_at).getTime()-new Date(l.starts_at).getTime())/3600000));return out},[lessons]);
+ const hours=useMemo(()=>{
+  const out:Record<string,number>={};
+  lessons.filter(l=>l.status==="completed").forEach(l=>{
+   const duration=Math.max(0,(new Date(l.ends_at).getTime()-new Date(l.starts_at).getTime())/3600000);
+   let participants=[l.student_id];
+   try{const parsed=JSON.parse(l.notes||"{}");if(Array.isArray(parsed.participants)&&parsed.participants.length)participants=parsed.participants;}catch{}
+   participants.forEach(id=>out[id]=(out[id]||0)+duration);
+  });
+  return out;
+ },[lessons]);
  const filtered=students.filter(s=>`${s.full_name} ${s.country_code||""}`.toLowerCase().includes(query.toLowerCase()));
  const groupMembersOf=(s:Student)=>s.group_id?students.filter(member=>member.group_id===s.group_id):[s];
  const openStudent=(s?:Student)=>{setEditing(s||null);setStudentMode("single");setGroupName("");setGroupMembers([{full_name:"",age:""},{full_name:"",age:""}]);setStudentForm(s?{full_name:s.full_name,age:String(s.age||""),country_code:s.country_code||"",timezone:s.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,native_language:s.native_language||"",contact_phone:s.contact_phone||"",monthly_hours:String(s.monthly_hours||8),compensation_type:s.compensation_type||"virtual_currency",currency_code:s.currency_code||"EUR",center_name:s.center_name||"",center_number:s.center_number||"",status:s.status||"active",notes:s.notes||""}:emptyStudentForm());setStudentModal(true)};
@@ -48,7 +97,27 @@ export default function StudentsReference(){
   if(r.error){setMessage(r.error.message);return}setStudentModal(false);await load();setMessage(editing?"تم تحديث الطالب.":"تمت إضافة الطالب.")};
  const remove=async(s:Student)=>{if(!confirm(`حذف ${s.full_name}؟`))return;const {error}=await supabase.from("students").update({status:"archived"}).eq("id",s.id);if(error)setMessage(error.message);else{await load();setMessage("تمت أرشفة الطالب.")}};
  const openLesson=(s:Student)=>{const participants=groupMembersOf(s);setLessonStudent(s);setLessonStudents(participants);setLessonForm({date:isoDate(),time:new Date().toTimeString().slice(0,5),minutes:"60",status:"completed",rating:5,learned:"",report:"",homework:""});setLessonModal(true)};
- const saveLesson=async(e:FormEvent)=>{e.preventDefault();if(!lessonStudent)return;const start=new Date(`${lessonForm.date}T${lessonForm.time}:00`);if(Number.isNaN(start.getTime())){setMessage("راجع تاريخ ووقت الحصة.");return}const end=new Date(start.getTime()+Number(lessonForm.minutes||60)*60000);const {data:user}=await supabase.auth.getUser();if(!user.user){setMessage("انتهت جلسة الدخول.");return}const participants=lessonStudents.length?lessonStudents:[lessonStudent];const names=participants.map(student=>student.full_name).join("، ");const notes=JSON.stringify({rating:lessonForm.rating,learned:lessonForm.learned,report:lessonForm.report,homework:lessonForm.homework,participants:participants.map(student=>student.id)});const rows=participants.map(student=>({student_id:student.id,teacher_id:user.user.id,event_type:"lesson",title:participants.length>1?`حصة جماعية: ${names}`:`حصة ${student.full_name}`,starts_at:start.toISOString(),ends_at:end.toISOString(),timezone:student.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone,status:lessonForm.status,is_makeup:false,reminder_minutes:0,notes}));const {error}=await supabase.from("events").insert(rows);if(error){setMessage(error.message);return}setLessonModal(false);await load();setMessage(participants.length>1?`تم تسجيل الحصة لجميع أفراد المجموعة (${participants.length} طلاب).`:"تم تسجيل الحصة بنجاح.")};
+ const saveLesson=async(e:FormEvent)=>{
+  e.preventDefault();
+  if(!lessonStudent)return;
+  const {data:user}=await supabase.auth.getUser();
+  if(!user.user){setMessage("انتهت جلسة الدخول.");return}
+  const timezone=teacherTimezone||defaultTeacherTimezone;
+  const start=teacherWallClockToUtc(lessonForm.date,lessonForm.time,timezone);
+  if(Number.isNaN(start.getTime())){setMessage("راجع تاريخ ووقت الحصة.");return}
+  const end=new Date(start.getTime()+Number(lessonForm.minutes||60)*60000);
+  const participants=lessonStudents.length?lessonStudents:[lessonStudent];
+  const names=participants.map(student=>student.full_name).join("، ");
+  const normalizedStatus=lessonForm.status==="pending_makeup"?"pending":lessonForm.status;
+  const notes=JSON.stringify({rating:lessonForm.rating,learned:lessonForm.learned,report:lessonForm.report,homework:lessonForm.homework,participants:participants.map(student=>student.id)});
+  const {data:event,error}=await supabase.from("events").insert({student_id:lessonStudent.id,teacher_id:user.user.id,event_type:"lesson",title:participants.length>1?"حصة جماعية: "+names:"حصة "+lessonStudent.full_name,starts_at:start.toISOString(),ends_at:end.toISOString(),timezone,status:normalizedStatus,is_makeup:lessonForm.status==="pending_makeup",reminder_minutes:30,notes}).select("id").single();
+  if(error||!event){setMessage(error?.message||"تعذر تسجيل الحصة.");return}
+  const {error:participantsError}=await supabase.from("event_students").insert(participants.map(student=>({event_id:event.id,student_id:student.id})));
+  if(participantsError){await supabase.from("events").delete().eq("id",event.id);setMessage(participantsError.message);return}
+  setLessonModal(false);
+  await load();
+  setMessage(participants.length>1?"تم تسجيل الحصة لجميع أفراد المجموعة ("+participants.length+" طلاب).":"تم تسجيل الحصة بنجاح.");
+ };
  const printStatement=(s:Student)=>{const done=(hours[s.id]||0).toFixed(1);const html=`<html dir="rtl"><head><title>كشف حساب الطالب</title><style>body{font-family:Arial;padding:40px;color:#27352d}h1{color:#526a58;border-bottom:2px solid #526a58;padding-bottom:12px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:24px}.box{border:1px solid #ddd;padding:14px;border-radius:10px}</style></head><body><h1>رواق — كشف حساب الطالب</h1><div class="grid"><div class="box"><b>الطالب:</b> ${s.full_name}</div><div class="box"><b>الساعات المنجزة:</b> ${done} ساعة</div><div class="box"><b>الساعات المقررة:</b> ${s.monthly_hours} ساعة</div><div class="box"><b>الفترة:</b> ${now.toLocaleDateString("ar-EG",{month:"long",year:"numeric"})}</div></div><script>print()</script></body></html>`;const w=window.open("","_blank");if(w){w.document.write(html);w.document.close()}};
  return <main className="students-ref-page" dir="rtl"><section className="students-ref-hero"><div><h1>سجل بيانات الطلاب <span>{students.length} طالبًا مسجلًا</span></h1><p>إدارة بيانات الطلاب، المجموعات، المناطق الزمنية، المناهج، العملة الافتراضية والتواصل المباشر.</p></div><div className="students-ref-actions"><label><Search size={18}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="بحث بالاسم أو الدولة..."/></label><button onClick={()=>openStudent()}><Plus size={17}/> تسجيل طالب جديد</button></div></section>
  <section className="students-ref-grid">{loading?<p>جارٍ تحميل الطلاب...</p>:filtered.map(s=>{const done=hours[s.id]||0,goal=Number(s.monthly_hours||0),pct=goal?Math.min(100,done/goal*100):0,complete=done>=goal&&goal>0,participants=groupMembersOf(s);return <article className={`student-ref-card ${complete?"complete":""}`} key={s.id}><header><div className="card-edit"><button onClick={()=>openStudent(s)}><Pencil size={15}/></button><button onClick={()=>remove(s)}><Trash2 size={15}/></button></div><div><h2>{countryFlag(s.country_code||"")} {s.full_name}</h2><p>{s.country_code||"—"} · {s.native_language||"طالب"} · {s.status==="active"?"منتظم":"متوقف"}</p></div></header>{s.group_id&&<div className="student-group-badge"><UsersRound size={13}/> ضمن مجموعة مشتركة ({participants.length} طلاب)</div>}<div className="student-ref-rate"><span>{s.currency_code||"USD"} {s.compensation_type==="center"?"مركز":s.monthly_hours}</span><b>الأجر الدراسي:</b></div><div className="student-ref-subject"><BookOpen size={14}/><span>{s.notes||"لم يتم تحديد وصف الدراسة بعد"}</span></div><div className="student-ref-meta"><span><Globe2 size={14}/> المنطقة الزمنية: {s.timezone||"حسب الطالب"}</span><span><Phone size={14}/> {s.contact_phone||"لا يوجد رقم مسجل"}</span></div><div className="student-ref-hours"><div><b>ساعات هذا الشهر:</b><strong>{done.toFixed(1)} / {goal} ساعة</strong></div><div className="hours-line"><i style={{width:`${pct}%`}}/></div><small>{complete?"✓ اكتملت الساعات الشهرية":`محسوب منفذ ${pct.toFixed(0)}% من الهدف`}</small></div><footer><button className="record" onClick={()=>openLesson(s)}><Plus size={14}/> {s.group_id?"تسجيل حصة للمجموعة":"تسجيل حصة"}</button><button onClick={()=>printStatement(s)}><FileText size={14}/> كشف حساب</button>{s.compensation_type==="center"&&complete&&<button onClick={()=>setMessage(`تقرير المركز: ${s.full_name} — ${s.center_name||"—"} — ${s.center_number||"—"}`)}><FileText size={14}/> تقرير مركز</button>}</footer></article>})}</section>
