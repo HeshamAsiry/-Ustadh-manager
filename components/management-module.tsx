@@ -31,12 +31,8 @@ const STORAGE_PREFIX="riwaq:module:";
 const DB_KINDS=new Set<Kind>(["hours","lessons","reports","payments","paths"]);
 const readLocal=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
 const writeCloudRows=async(kind:Kind,rows:Row[])=>{
-  const {data:user}=await supabase.auth.getUser();
-  if(!user.user)return;
-  const current=await supabase.from("user_data").select("management_modules").eq("user_id",user.user.id).maybeSingle();
-  if(current.error)return;
-  const modules=current.data?.management_modules&&typeof current.data.management_modules==="object"?current.data.management_modules:{};
-  await supabase.from("user_data").update({management_modules:{...modules,[kind]:rows}}).eq("user_id",user.user.id);
+  const {error}=await supabase.rpc("set_management_module",{p_kind:kind,p_rows:rows});
+  return error||null;
 };
 
 
@@ -219,7 +215,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
 
   useEffect(()=>{
     if(DB_KINDS.has(kind)||kind==="settings"||!hydrated)return;
-    void writeCloudRows(kind,rows);
+    void writeCloudRows(kind,rows).then(error=>{if(error)setNotice(error.message)});
   },[rows,kind,hydrated]);
 
 
