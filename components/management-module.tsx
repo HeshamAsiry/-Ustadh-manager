@@ -345,7 +345,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
         teacher_id:user.user.id,
         student_id:paymentStudentId||previous.student_id||null,
         student_name:(selectedPaymentStudent?.full_name||form.title.trim()),
-        legacy_student_id:previous.legacy_student_id||null,
+        legacy_student_id:paymentStudentId?null:(previous.legacy_student_id||null),
         billing_period:previous.billing_period||null,
         month_year:month,
         hourly_rate:Number(previous.hourly_rate||0),
