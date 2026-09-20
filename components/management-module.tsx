@@ -159,11 +159,6 @@ export default function ManagementModule({kind}:{kind:Kind}){
   },[rows,kind,hydrated]);
 
 
-  useEffect(()=>{
-    if(DB_KINDS.has(kind))return;
-    if(rows.length)saveLocal(kind,rows);
-  },[rows,kind]);
-
   const filtered=useMemo(()=>rows.filter(r=>`${r.title} ${r.subtitle} ${r.value||""}`.toLowerCase().includes(query.trim().toLowerCase())),[rows,query]);
 
   const metrics=useMemo(()=>{
