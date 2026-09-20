@@ -76,3 +76,7 @@ create index if not exists event_students_student_idx on public.event_students(s
 
 alter table public.student_groups enable row level security;
 alter table public.event_students enable row level security;
+
+
+alter table public.students drop constraint if exists students_age_range_check;
+alter table public.students add constraint students_age_range_check check (age is null or (age between 0 and 120));
