@@ -56,6 +56,7 @@ const wallClockToUtc=(date:string,time:string,timezone:string)=>{
   const candidate=base-offsetAt(base)*60000;
   return new Date(base-offsetAt(candidate)*60000);
 };
+const parseRowJson=(value?:string)=>{try{return value?JSON.parse(value):{}}catch{return {}}};
 const formatArabicDate=(iso:string,timezone:string)=>{
   const p=partsInZone(iso,timezone);
   return new Intl.DateTimeFormat("ar-EG",{day:"numeric",month:"long",year:"numeric"}).format(new Date(p.date+"T12:00:00"));
@@ -92,6 +93,23 @@ export default function ManagementModule({kind}:{kind:Kind}){
         return;
       }
 
+      if(kind==="payments"){
+        const {data:payments,error}=await supabase.from("payments").select("id,student_id,student_name,month_year,billing_period,amount,amount_paid,total_due,currency_code,status,payment_method,payment_date,due_date,notes,hourly_rate,agreed_hours,actual_hours,total_hours_billed,legacy_student_id").order("month_year",{ascending:false}).order("student_name");
+        if(cancelled)return;
+        if(error){setNotice(error.message);setRows([]);setLoadingState(false);return}
+        const paymentRows=(payments||[]).map((p:any)=>({
+          id:p.id,
+          title:p.student_name,
+          subtitle:p.month_year||p.billing_period||"بدون فترة",
+          status:p.status==="paid"?"مدفوعة":p.status==="partial"?"مدفوعة جزئيًا":"غير مدفوعة",
+          value:(Number(p.amount||0).toFixed(2)+" "+(p.currency_code||"")).trim(),
+          date:p.payment_date||p.due_date||"",
+          extra:JSON.stringify(p)
+        }));
+        if(!cancelled)setRows(paymentRows);
+        if(!cancelled){setHydrated(true);setLoadingState(false)}
+        return;
+      }
       if(!DB_KINDS.has(kind)){
         const cloudModules=userDataResult.data?.management_modules;
         const cloudRows=cloudModules&&typeof cloudModules==="object"&&Array.isArray(cloudModules[kind])?cloudModules[kind]:null;
