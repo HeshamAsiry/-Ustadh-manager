@@ -25,18 +25,114 @@ const config: Record<Kind,{title:string;subtitle:string;primary:string;tabs:stri
   lessons:{title:"الحصص",subtitle:"سجل الحصص القادمة والمنجزة واربط كل حصة بالطالب والساعات والتقرير.",primary:"تسجيل حصة",tabs:["القادمة","المنجزة","السجل"],stats:["حصص اليوم","هذا الأسبوع","منجزة","معلقة"],columns:["الحصة","الطالب","التاريخ","الحالة"],seed:[]}
 };
 
+
 const STORAGE_PREFIX="riwaq:module:";
-const read=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
-const save=(kind:Kind,rows:Row[])=>localStorage.setItem(STORAGE_PREFIX+kind,JSON.stringify(rows));
+const DB_KINDS=new Set<Kind>(["hours","lessons","reports"]);
+
+const readLocal=(kind:Kind,seed:Row[])=>{try{const raw=localStorage.getItem(STORAGE_PREFIX+kind);return raw?JSON.parse(raw):seed}catch{return seed}};
+const saveLocal=(kind:Kind,rows:Row[])=>localStorage.setItem(STORAGE_PREFIX+kind,JSON.stringify(rows));
+
+const partsInZone=(iso:string,timezone:string)=>{
+  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(iso));
+  const get=(type:string)=>parts.find(part=>part.type===type)?.value||"";
+  return {date:get("year")+"-"+get("month")+"-"+get("day"),time:get("hour")+":"+get("minute")};
+};
+const wallClockToUtc=(date:string,time:string,timezone:string)=>{
+  const d=date.split("-").map(Number), t=time.split(":").map(Number);
+  const base=Date.UTC(d[0],d[1]-1,d[2],t[0],t[1]);
+  const offsetAt=(ms:number)=>{
+    const parts=new Intl.DateTimeFormat("en-US",{timeZone:timezone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ms));
+    const get=(x:string)=>Number(parts.find(part=>part.type===x)?.value||0);
+    return Math.round((Date.UTC(get("year"),get("month")-1,get("day"),get("hour"),get("minute"))-ms)/60000);
+  };
+  const candidate=base-offsetAt(base)*60000;
+  return new Date(base-offsetAt(candidate)*60000);
+};
+const formatArabicDate=(iso:string,timezone:string)=>{
+  const p=partsInZone(iso,timezone);
+  return new Intl.DateTimeFormat("ar-EG",{day:"numeric",month:"long",year:"numeric"}).format(new Date(p.date+"T12:00:00"));
+};
+
 
 export default function ManagementModule({kind}:{kind:Kind}){
   const c=config[kind], Icon=icons[kind];
-  const [rows,setRows]=useState<Row[]>([]),[query,setQuery]=useState(""),[tab,setTab]=useState(0);
+  const [rows,setRows]=useState<Row[]>([]),[query,setQuery]=useState(""),[tab,setTab]=useState(0),[loadingState,setLoadingState]=useState(true);
   const [open,setOpen]=useState(false),[editing,setEditing]=useState<Row|null>(null),[notice,setNotice]=useState("");
   const [form,setForm]=useState({title:"",subtitle:"",status:"نشط",value:"",date:"",extra:""});
 
-  useEffect(()=>setRows(read(kind,c.seed)),[kind,c.seed]);
-  useEffect(()=>{if(rows.length)save(kind,rows)},[rows,kind]);
+
+  useEffect(()=>{
+    let cancelled=false;
+    const load=async()=>{
+      if(!DB_KINDS.has(kind)){
+        setRows(readLocal(kind,c.seed));
+        setLoadingState(false);
+        return;
+      }
+      setLoadingState(true);
+      const {data:user}=await supabase.auth.getUser();
+      if(!user.user){setRows([]);setLoadingState(false);return}
+      const settingsResult=await supabase.from("user_data").select("settings").eq("user_id",user.user.id).maybeSingle();
+      const timezone=settingsResult.data?.settings?.teacherTimeZone||settingsResult.data?.settings?.timezone||"Africa/Cairo";
+      const now=new Date();
+      const localToday=partsInZone(now.toISOString(),timezone).date;
+      const monthStart=localToday.slice(0,7)+"-01";
+      const nextMonth=new Date(monthStart+"T12:00:00");
+      nextMonth.setMonth(nextMonth.getMonth()+1);
+      const monthEnd=nextMonth.toISOString().slice(0,10);
+      const startUtc=wallClockToUtc(monthStart,"00:00",timezone).toISOString();
+      const endUtc=wallClockToUtc(monthEnd,"00:00",timezone).toISOString();
+
+      const [studentsResult,eventsResult]=await Promise.all([
+        supabase.from("students").select("id,full_name,monthly_hours,status,timezone,country_code").neq("status","archived").order("full_name"),
+        supabase.from("events").select("id,student_id,title,starts_at,ends_at,status,event_type,notes").eq("event_type","lesson").gte("starts_at",startUtc).lt("starts_at",endUtc).order("starts_at",{ascending:false})
+      ]);
+      if(cancelled)return;
+      if(studentsResult.error){setNotice(studentsResult.error.message);setRows([]);setLoadingState(false);return}
+      if(eventsResult.error){setNotice(eventsResult.error.message);setRows([]);setLoadingState(false);return}
+
+      const students=studentsResult.data||[];
+      const events=eventsResult.data||[];
+      const byStudent=Object.fromEntries(students.map(s=>[s.id,s]));
+      if(kind==="hours"){
+        const completed=events.filter(e=>e.status==="completed");
+        const done:Record<string,number>={};
+        completed.forEach(e=>{
+          const h=Math.max(0,(new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/3600000);
+          let ids=[e.student_id].filter(Boolean) as string[];
+          try{
+            const parsed=JSON.parse(e.notes||"{}");
+            if(Array.isArray(parsed.participants)&&parsed.participants.length)ids=parsed.participants;
+          }catch{}
+          ids.forEach(id=>done[id]=(done[id]||0)+h);
+        });
+        setRows(students.map(s=>{
+          const h=done[s.id]||0;
+          const target=Number(s.monthly_hours||0);
+          const pct=target?Math.min(100,h/target*100):0;
+          return {id:s.id,title:s.full_name,subtitle:target+" ساعة مقررة",status:pct>=100?"مكتمل":pct>0?"قيد الإنجاز":"لم يبدأ",value:h.toFixed(1)+" / "+target.toFixed(1)+" ساعة",extra:pct.toFixed(0)+"%"};
+        }));
+      }else{
+        setRows(events.map(e=>{
+          const student=byStudent[e.student_id||""];
+          let report="";
+          try{report=JSON.parse(e.notes||"{}").report||""}catch{}
+          const title=kind==="reports"?"تقرير — "+(student?.full_name||"طالب"):e.title;
+          const status=kind==="reports"?(report.trim()?"جاهز":"مسودة"):(e.status==="completed"?"منجز":e.status==="pending"?"معلق":e.status==="cancelled"?"ملغى":"قادم");
+          return {id:e.id,title,subtitle:student?.full_name||"طالب",status,value:student?.full_name||"—",date:formatArabicDate(e.starts_at,timezone),extra:report||e.title};
+        }));
+      }
+      setLoadingState(false);
+    };
+    void load();
+    return()=>{cancelled=true};
+  },[kind]);
+
+  useEffect(()=>{
+    if(DB_KINDS.has(kind))return;
+    if(rows.length)saveLocal(kind,rows);
+  },[rows,kind]);
+
   const filtered=useMemo(()=>rows.filter(r=>`${r.title} ${r.subtitle} ${r.value||""}`.toLowerCase().includes(query.trim().toLowerCase())),[rows,query]);
 
   const metrics=useMemo(()=>{
@@ -55,6 +151,8 @@ export default function ManagementModule({kind}:{kind:Kind}){
   },[kind,rows]);
 
   const start=(row?:Row)=>{
+    if(!row && kind==="lessons"){window.location.href="/students";return}
+    if(!row && kind==="hours"){window.location.href="/students";return}
     setEditing(row||null);
     setForm(row?{title:row.title,subtitle:row.subtitle,status:row.status,value:row.value||"",date:row.date||"",extra:row.extra||""}:{title:"",subtitle:"",status:kind==="settings"?"مفعل":"نشط",value:"",date:"",extra:""});
     setOpen(true);setNotice("");
@@ -84,7 +182,7 @@ export default function ManagementModule({kind}:{kind:Kind}){
 
     <section className="management-panel">
       <header><div><span className="panel-kicker">رواق / {c.title}</span><h2>{c.tabs[tab]}</h2><p>{filtered.length} عنصر ظاهر</p></div><div className="management-tools"><label><Search size={16}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="بحث..."/></label><button className="secondary-button"><Filter size={15}/> تصفية <ChevronDown size={14}/></button></div></header>
-      {filtered.length===0?<div className="management-empty"><div><Icon size={28}/></div><h3>لا توجد بيانات بعد</h3><p>ابدأ بإضافة أول عنصر من الزر الموجود أعلى الصفحة، وسيظهر هنا مباشرة.</p><button className="primary-button" onClick={()=>start()}><Plus size={16}/> {c.primary}</button></div>:
+      {loadingState?<div className="management-empty"><div><Icon size={28}/></div><h3>جارٍ تحميل البيانات</h3><p>يتم جلب البيانات من قاعدة البيانات...</p></div>:filtered.length===0?<div className="management-empty"><div><Icon size={28}/></div><h3>لا توجد بيانات بعد</h3><p>ابدأ بإضافة أول عنصر من الزر الموجود أعلى الصفحة، وسيظهر هنا مباشرة.</p><button className="primary-button" onClick={()=>start()}><Plus size={16}/> {c.primary}</button></div>:
       <div className="management-table-wrap"><table className="management-table"><thead><tr>{c.columns.map(x=><th key={x}>{x}</th>)}<th></th></tr></thead><tbody>{filtered.map(r=><tr key={r.id}><td><div className="table-title"><span className="table-icon"><Icon size={16}/></span><div><strong>{r.title}</strong><small>{r.subtitle}</small></div></div></td><td>{r.value||r.extra||"—"}</td><td>{r.date||"هذا الشهر"}</td><td><span className={`management-status ${/مكتمل|منجز|جاهز|مفعل|نشط/.test(r.status)?"done":""}`}>{r.status}</span></td><td><div className="row-actions"><button onClick={()=>start(r)} title="تعديل"><Pencil size={15}/></button><button onClick={()=>remove(r.id)} title="حذف"><Trash2 size={15}/></button><button title="المزيد"><MoreHorizontal size={15}/></button></div></td></tr>)}</tbody></table></div>}
     </section>
 
