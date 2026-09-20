@@ -186,16 +186,65 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
   const selected=new Date(selectedDate+"T12:00:00");
   const week=weekStart(selected);
   const weekDates=Array.from({length:7},(_,i)=>addDays(week,i));
-  const subjects=useMemo(()=>Array.from(new Set(appointments.map(a=>a.subject))).sort(),[appointments]);
-  const visibleAppointments=useMemo(()=>filter==="الكل"?appointments:appointments.filter(a=>a.subject===filter),[appointments,filter]);
+
+  const recurringAppointments=useMemo(()=>{
+    const scopeType=scope==="personal"?"personal":scope==="lessons"?"lesson":null;
+    const actualKeys=new Set(appointments.map(a=>`${a.eventType}|${a.date}|${a.time}|${a.duration}|${a.studentIds.slice().sort().join(",")}|${a.subject}`));
+    const rangeStart=addDays(new Date(selected.getFullYear(),selected.getMonth(),1),-42);
+    const rangeEnd=addDays(new Date(selected.getFullYear(),selected.getMonth()+1,0),42);
+    const out:Appointment[]=[];
+    const studentById=Object.fromEntries(students.map(s=>[s.id,s]));
+    for(let cursor=new Date(rangeStart);cursor<=rangeEnd;cursor=addDays(cursor,1)){
+      const key=dateKey(cursor);
+      const day=cursor.getDay();
+      recurringSlots.forEach(slot=>{
+        if(!slot.active||slot.day_of_week!==day||(scopeType&&slot.source_type!==scopeType))return;
+        const start=teacherWallClockToUtc(key,slot.start_time.slice(0,5),slot.timezone||teacherTimezone);
+        const end=new Date(start.getTime()+slot.duration_minutes*60000);
+        const local=zonedParts(start.toISOString(),teacherTimezone);
+        const studentIds=recurringParticipants[slot.id]||[];
+        const names=studentIds.map(id=>studentById[id]?.full_name).filter(Boolean) as string[];
+        const student=slot.source_type==="personal"?"موعد شخصي":(names.length?names.join("، "):"حصة متكررة");
+        const primary=studentById[studentIds[0]||""];
+        const subject=slot.source_type==="personal"?slot.title:slot.title;
+        const appointmentKey=`${slot.source_type}|${local.date}|${local.time}|${slot.duration_minutes}|${studentIds.slice().sort().join(",")}|${subject}`;
+        if(actualKeys.has(appointmentKey))return;
+        out.push({
+          id:`rec:${slot.id}:${key}`,
+          date:local.date,
+          time:local.time,
+          end:zonedParts(end.toISOString(),teacherTimezone).time,
+          studentId:studentIds[0]||"",
+          studentIds,
+          student,
+          country:slot.source_type==="personal"?"":countryName(primary?.country_code||""),
+          countryCode:slot.source_type==="personal"?"":(primary?.country_code||""),
+          timezone:slot.source_type==="personal"?teacherTimezone:(primary?.timezone||teacherTimezone),
+          subject,
+          duration:slot.duration_minutes,
+          status:"scheduled",
+          eventType:slot.source_type,
+          notes:slot.notes,
+          isRecurring:true,
+          recurringSlotId:slot.id
+        });
+      });
+    }
+    return out;
+  },[appointments,recurringSlots,recurringParticipants,students,selectedDate,teacherTimezone,scope]);
+
+  const displayAppointments=useMemo(()=>[...appointments,...recurringAppointments],[appointments,recurringAppointments]);
+  const subjects=useMemo(()=>Array.from(new Set(displayAppointments.map(a=>a.subject))).sort(),[displayAppointments]);
+  const visibleAppointments=useMemo(()=>filter==="الكل"?displayAppointments:displayAppointments.filter(a=>a.subject===filter),[displayAppointments,filter]);
   const weekAppointments=visibleAppointments.filter(a=>a.date>=dateKey(weekDates[0])&&a.date<=dateKey(weekDates[6]));
   const totalHours=weekAppointments.reduce((sum,a)=>sum+a.duration,0)/60;
   const dayAppointments=visibleAppointments.filter(a=>a.date===selectedDate).sort((a,b)=>minutes(a.time)-minutes(b.time));
   const conflicts=useMemo(()=>{
     const result:Array<[string,string]>=([]);
-    for(let i=0;i<appointments.length;i++){
-      for(let j=i+1;j<appointments.length;j++){
-        const a=appointments[i],b=appointments[j];
+    for(let i=0;i<displayAppointments.length;i++){
+      for(let j=i+1;j<displayAppointments.length;j++){
+        const a=displayAppointments[i],b=displayAppointments[j];
+        if(a.status==="cancelled"||b.status==="cancelled")continue;
         const aStart=teacherWallClockToUtc(a.date,a.time,teacherTimezone).getTime();
         const bStart=teacherWallClockToUtc(b.date,b.time,teacherTimezone).getTime();
         const aEnd=aStart+a.duration*60000;
@@ -204,7 +253,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
       }
     }
     return result;
-  },[appointments]);
+  },[displayAppointments,teacherTimezone]);
   const conflictIds=new Set(conflicts.flat());
 
   const selectedStudent=students.find(s=>s.id===selectedStudentId)||students[0];
