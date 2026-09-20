@@ -63,7 +63,7 @@ export default function DashboardPage(){
       supabase.from("students").select("id,full_name,country_code,timezone,status").neq("status","archived").order("full_name"),
       supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status").gte("starts_at",startOfDay).lt("starts_at",endOfDay).order("starts_at"),
       supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status").gte("starts_at",monthStartUtc).lt("starts_at",monthEndUtc),
-      supabase.from("recurring_schedule_slots").select("id,source_type,title,day_of_week,start_time,duration_minutes,timezone,active").eq("source_type","lesson").eq("active",true)
+      supabase.from("recurring_schedule_slots").select("id,source_type,title,day_of_week,start_time,duration_minutes,timezone,active").eq("active",true)
     ]);
     if(s.error) setMessage(s.error.message); else setStudents((s.data||[]) as Student[]);
     if(d.error) setMessage(d.error.message); else setEvents((d.data||[]) as EventRow[]);
@@ -110,7 +110,8 @@ export default function DashboardPage(){
   const nextLesson=orderedLessons.find(e=>new Date(e.starts_at).getTime()>Date.now()&&e.status!=="completed")||orderedLessons.find(e=>e.status==="scheduled"||e.status==="pending");
   const totalTodayHours=todayEvents.filter(e=>e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);
   const completedToday=todayEvents.filter(e=>e.status==="completed").length;
-  const personalToday=allDayEvents.filter(e=>e.event_type==="personal"&&e.status!=="cancelled").length;
+  const personalToday=allDayEvents.filter(e=>e.event_type==="personal"&&e.status!=="cancelled").length
+    +recurringSlots.filter(r=>r.source_type==="personal"&&r.active&&r.day_of_week===new Date(today+"T12:00:00").getDay()).length;
   const monthTotalHours=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").reduce((sum,e)=>sum+durationHours(e),0);  const monthCompleted=monthEvents.filter(e=>e.event_type==="lesson"&&e.status==="completed").length;
   const monthLabel=new Intl.DateTimeFormat("ar-EG",{month:"long",year:"numeric"}).format(new Date(today+"T12:00:00"));
   const todayLabel=formatDate(today);
