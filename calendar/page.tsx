@@ -29,6 +29,8 @@ type Appointment = {
   duration: number;
   status: string;
   eventType: "lesson" | "personal";
+  startsAt: string;
+  endsAt: string;
 };
 type FormState = {
   date: string;
@@ -83,7 +85,7 @@ const emptyForm = (date:string):FormState => ({
 });
 
 export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"personal"|"all"}){
-  const todayKey=dateKey(new Date());
+  const [todayKey,setTodayKey]=useState(dateKey(new Date()));
   const [view,setView]=useState<ViewMode>("week");
   const [selectedDate,setSelectedDate]=useState(todayKey);
   const [appointments,setAppointments]=useState<Appointment[]>([]);
@@ -117,6 +119,8 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setStudents(studentRows);
     const tz=userDataResult.data?.settings?.teacherTimeZone||userDataResult.data?.settings?.timezone||"Africa/Cairo";
     setTeacherTimezone(tz);
+    const teacherToday=zonedParts(new Date().toISOString(),tz).date;
+    setTodayKey(teacherToday);
     if(eventResult.error){setMessage(eventResult.error.message);setAppointments([]);}
     else{
       const byId=Object.fromEntries(studentRows.map(s=>[s.id,s]));
@@ -138,7 +142,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
         const parts=zonedParts(e.starts_at,tz), endParts=zonedParts(e.ends_at,tz);
         const duration=Math.max(0,Math.round((new Date(e.ends_at).getTime()-new Date(e.starts_at).getTime())/60000));
         const code=primary?.country_code||"";
-        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType};
+        return {id:e.id,date:parts.date,time:parts.time,end:endParts.time,studentId:e.student_id,studentIds:ids,student:eventType==="personal"?"موعد شخصي":(names.length>1?names.join("، "):(names[0]||"طالب محذوف")),country:eventType==="personal"?"":countryName(code),countryCode:eventType==="personal"?"":code,timezone:eventType==="personal"?tz:(primary?.timezone||"Africa/Cairo"),subject:e.title||"بدون عنوان",duration,status:e.status,eventType,startsAt:e.starts_at,endsAt:e.ends_at};
       }));
     }
     setLoading(false);
@@ -159,7 +163,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     for(let i=0;i<appointments.length;i++){
       for(let j=i+1;j<appointments.length;j++){
         const a=appointments[i],b=appointments[j];
-        if(a.date===b.date&&minutes(a.time)<minutes(b.end)&&minutes(b.time)<minutes(a.end))result.push([a.id,b.id]);
+        if(new Date(a.startsAt).getTime()<new Date(b.endsAt).getTime()&&new Date(b.startsAt).getTime()<new Date(a.endsAt).getTime())result.push([a.id,b.id]);
       }
     }
     return result;
@@ -239,7 +243,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     if(view==="month")setSelectedDate(dateKey(new Date(selected.getFullYear(),selected.getMonth()+direction,1)));
     else setSelectedDate(dateKey(addDays(selected,view==="week"?direction*7:direction)));
   };
-  const goToday=()=>setSelectedDate(dateKey(new Date()));
+  const goToday=()=>setSelectedDate(zonedParts(new Date().toISOString(),teacherTimezone).date);
 
   const calendarCells=useMemo(()=>{
     const first=new Date(selected.getFullYear(),selected.getMonth(),1);
