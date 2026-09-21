@@ -44,6 +44,8 @@ export function googleCalendarEventUrl(event: GoogleCalendarEvent) {
     action: "TEMPLATE",
     text: event.title,
     dates: `${compactUtc(start)}/${compactUtc(end)}`,
+    stz: event.timezone,
+    etz: event.timezone,
   });
 
   if (event.details?.trim()) params.set("details", event.details.trim());
