@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, CreditCard, FileDown, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
+import { CalendarDays, Check, CreditCard, Download, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { printRiwaqDocument } from "../../lib/print-document";
 import "./payments.css";
@@ -143,7 +143,7 @@ export default function PaymentsPage(){
     <header className="payments-hero">
       <div><span className="payments-kicker">إدارة رواق</span><h1>المدفوعات والمعاملات</h1><p>تسجيل الدفعات ومتابعة المستحقات لكل طالب مع حفظ البيانات في قاعدة رواق.</p></div>
       <div className="payments-hero-actions no-print">
-        <button className="payments-secondary" onClick={exportPdf}><FileDown size={16}/> تصدير PDF</button>
+        <button className="payments-secondary" onClick={exportPdf}><Download size={16}/> تصدير PDF</button>
         <button className="payments-primary" onClick={openNew}><Plus size={17}/> تسجيل معاملة</button>
       </div>
     </header>
