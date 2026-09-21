@@ -19,3 +19,15 @@
 .lesson-ref-modal{width:min(610px,100%)!important;border-radius:17px!important;background:#f7f5ef!important;box-shadow:0 28px 70px rgba(20,28,23,.34)!important}.lesson-ref-modal>header{height:61px!important;padding:0 24px!important;background:#36463d!important;color:#fff!important;border:0!important}.lesson-ref-modal>header h2{color:#fff!important;font-size:17px!important}.lesson-ref-modal>header button{color:#d8dfd9!important}.lesson-body{padding:20px 24px!important;background:linear-gradient(180deg,#f8f6f0,#f4f1e9)!important}.lesson-body label,.rating{font-size:11px!important;font-weight:800!important;color:#5d675f!important}.lesson-body input,.lesson-body select,.lesson-body textarea,.rating>div{height:40px!important;border-radius:12px!important;background:#faf9f5!important;border-color:#d9d3c8!important;font-size:13px!important}.lesson-body textarea{height:auto!important;min-height:58px!important}.lesson-ref-modal footer{padding:13px 24px 22px!important;background:#f4f1e9!important}.lesson-ref-modal footer .save-lesson{height:41px!important;border-radius:12px!important;background:#506158!important}
 @media(max-width:900px){.students-ref-page>.students-ref-hero,.students-ref-page>.students-ref-grid{width:calc(100% - 34px)}.students-ref-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(max-width:650px){.students-ref-page>.students-ref-hero,.students-ref-page>.students-ref-grid{width:calc(100% - 24px)}.students-ref-grid{grid-template-columns:1fr!important}.students-ref-hero{align-items:stretch!important}.students-ref-actions{flex-direction:column!important}.students-ref-actions label{width:auto!important}.student-ref-form,.lesson-row,.lesson-status-row{grid-template-columns:1fr!important}.student-ref-modal,.lesson-ref-modal{border-radius:15px!important}}
+
+/* Final mobile refinement for student dialog */
+@media(max-width:650px){
+  .student-ref-backdrop{padding:8px!important;align-items:end!important}
+  .student-ref-modal,.lesson-ref-modal{width:100%!important;max-height:calc(100dvh - 8px)!important;border-radius:16px 16px 0 0!important;display:flex!important;flex-direction:column!important}
+  .student-ref-modal>header,.lesson-ref-modal>header{min-height:62px!important;flex:0 0 auto!important}
+  .student-ref-form,.lesson-body{overflow:auto!important;padding:16px!important;gap:11px!important}
+  .student-ref-form input,.student-ref-form select,.student-ref-form textarea,.lesson-body input,.lesson-body select,.lesson-body textarea,.rating>div{height:43px!important;font-size:13px!important}
+  .student-ref-form textarea,.lesson-body textarea{min-height:72px!important}
+  .student-ref-modal footer,.lesson-ref-modal footer{position:sticky!important;bottom:0!important;z-index:2!important;padding:11px 16px 14px!important}
+  .student-ref-modal footer button,.lesson-ref-modal footer button{flex:1!important;height:43px!important}
+}
