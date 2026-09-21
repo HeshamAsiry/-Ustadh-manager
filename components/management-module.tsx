@@ -7,6 +7,7 @@ import {
   Clock3, CreditCard, FileText, GraduationCap, Plus, Search, Settings2,
   Trash2, UserRound, X, Pencil, Download, Filter, MoreHorizontal
 } from "lucide-react";
+import { printRiwaqDocument } from "../lib/print-document";
 import "../app/management-pages.css";
 
 type Kind = "hours" | "payments" | "exams" | "paths" | "reports" | "alerts" | "settings" | "my-calendar" | "lessons";
@@ -419,7 +420,15 @@ export default function ManagementModule({kind}:{kind:Kind}){
       setNotice("تم حذف العنصر.");
     }
   };
-  const print=()=>{const w=window.open("","_blank");if(!w)return;w.document.write(`<html dir="rtl"><head><title>${c.title}</title><style>body{font-family:Arial;padding:32px;color:#28372f}table{width:100%;border-collapse:collapse;margin-top:24px}td,th{padding:10px;border:1px solid #ddd;text-align:right}h1{color:#526a58}</style></head><body><h1>رواق — ${c.title}</h1><p>${c.subtitle}</p><table><thead><tr>${c.columns.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${filtered.map(r=>`<tr><td>${r.title}</td><td>${r.subtitle}</td><td>${r.value||r.date||"—"}</td><td>${r.status}</td></tr>`).join("")}</tbody></table><script>window.print()</script></body></html>`);w.document.close()};
+  const print=()=>{
+    printRiwaqDocument({
+      title:c.title,
+      subtitle:c.subtitle,
+      columns:c.columns.map((label,index)=>({key:["title","subtitle","value","status"][index]||"title",label})),
+      rows:filtered.map(row=>({title:row.title,subtitle:row.subtitle,value:row.value||row.date||"—",status:row.status})),
+      summary:c.stats.map((label,index)=>({label,value:metrics[index]||"—"})),
+    });
+  };
 
   return <main className="management-page" dir="rtl">
     <section className="management-hero">
