@@ -50,5 +50,5 @@ export function googleCalendarEventUrl(event: GoogleCalendarEvent) {
 
   if (event.details?.trim()) params.set("details", event.details.trim());
 
-  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  return `https://calendar.google.com/calendar/r/eventedit?${params.toString()}`;
 }
