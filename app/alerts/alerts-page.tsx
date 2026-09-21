@@ -45,9 +45,9 @@ export default function AlertsPage(){
     setCustom(Array.isArray(raw)?raw as CustomAlert[]:[]);
     if(e.error)setNotice(e.error.message);
     const eventRows=(e.data||[]) as any[];
-    setEvents(eventRows.map(e=>({id:`event:${e.id}`,title:e.event_type==="personal"?"موعد شخصي: "+e.title:"الحصة القادمة: "+e.title,details:e.event_type==="personal"?"موعد شخصي محفوظ في الجدول.":"موعد دراسي محفوظ في التقويم.",when:e.starts_at,type:"حصة",href:e.event_type==="personal"?"/my-calendar":"/calendar",status:"نشط"})));
+    setEvents(eventRows.map(e=>({id:`event:${e.id}`,title:e.event_type==="personal"?"موعد شخصي: "+e.title:"الحصة القادمة: "+e.title,details:e.event_type==="personal"?"موعد شخصي محفوظ في الجدول.":"موعد دراسي محفوظ في التقويم.",when:e.starts_at,type:"حصة",href:e.event_type==="personal"?"/my-calendar":"/calendar",status:"نشط" as const})));
     if(p.error)setNotice(p.error.message);
-    setOverdue((p.data||[]).map((p:any)=>({id:`payment:${p.id}`,title:"استحقاق دفع: "+p.student_name,details:`المبلغ المستحق ${Number(p.total_due||0).toFixed(2)} ${p.currency_code||""}.`,when:(p.due_date||"")+ "T12:00:00",type:"دفعة",href:"/payments",status:"نشط"})));
+    setOverdue((p.data||[]).map((p:any)=>({id:`payment:${p.id}`,title:"استحقاق دفع: "+p.student_name,details:`المبلغ المستحق ${Number(p.total_due||0).toFixed(2)} ${p.currency_code||""}.`,when:(p.due_date||"")+ "T12:00:00",type:"دفعة",href:"/payments",status:"نشط" as const})));
   };
 
   useEffect(()=>{void load()},[]);
