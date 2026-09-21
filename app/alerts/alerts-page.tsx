@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Bell, CalendarClock, CalendarDays, Check, ChevronLeft, Clock3, CreditCard, FileDown, FileText, Plus, Search, Snooze, Trash2, UserRound, X } from "lucide-react";
+import { Bell, CalendarDays, CalendarDays, Check, ChevronLeft, Clock3, CreditCard, Download, FileText, Plus, Search, Clock3, Trash2, UserRound, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { printRiwaqDocument } from "../../lib/print-document";
 import "./alerts.css";
@@ -111,13 +111,13 @@ export default function AlertsPage(){
   return <main className="alerts-page" dir="rtl">
     <header className="alerts-hero">
       <div><span>مركز المتابعة في رواق</span><h1>التنبيهات والتذكيرات</h1><p>صفحة موحدة تربط تنبيهاتك بالمواعيد والمدفوعات والتنبيهات الشخصية.</p></div>
-      <div className="alerts-hero-actions no-print"><button className="alerts-secondary" onClick={exportPdf}><FileDown size={16}/> تصدير PDF</button><button className="alerts-primary" onClick={openNew}><Plus size={17}/> إضافة تنبيه</button></div>
+      <div className="alerts-hero-actions no-print"><button className="alerts-secondary" onClick={exportPdf}><Download size={16}/> تصدير PDF</button><button className="alerts-primary" onClick={openNew}><Plus size={17}/> إضافة تنبيه</button></div>
     </header>
     {notice&&<div className="alerts-notice"><Check size={16}/><span>{notice}</span><button onClick={()=>setNotice("")}><X size={14}/></button></div>}
 
     <section className="alerts-stats">
       <article><span><Bell size={17}/></span><div><small>التنبيهات النشطة</small><strong>{activeCount}</strong></div></article>
-      <article><span><CalendarClock size={17}/></span><div><small>تنبيهات اليوم</small><strong>{todayCount}</strong></div></article>
+      <article><span><CalendarDays size={17}/></span><div><small>تنبيهات اليوم</small><strong>{todayCount}</strong></div></article>
       <article><span><FileText size={17}/></span><div><small>غير المقروءة</small><strong>{unread}</strong></div></article>
       <article><span><Clock3 size={17}/></span><div><small>مؤجلة</small><strong>{snoozed}</strong></div></article>
     </section>
@@ -136,7 +136,7 @@ export default function AlertsPage(){
           <div className="alert-main"><div><strong>{a.title}</strong><span className="alert-type">{a.type}</span></div><p>{a.details}</p><small>{formatDateTime(a.when)}</small></div>
           <div className="alert-actions no-print">
             {a.href&&<a href={a.href}><ChevronLeft size={15}/> فتح</a>}
-            {isCustom&&<><button onClick={()=>openEdit(a.raw as CustomAlert)} title="تعديل"><FileText size={15}/></button><button onClick={()=>setStatus(a.raw as CustomAlert,"مقروءة")} title="تعليم كمقروء"><Check size={15}/></button><button onClick={()=>setStatus(a.raw as CustomAlert,"مؤجلة")} title="تأجيل"><Snooze size={15}/></button><button onClick={()=>remove(a.raw as CustomAlert)} title="حذف"><Trash2 size={15}/></button></>}
+            {isCustom&&<><button onClick={()=>openEdit(a.raw as CustomAlert)} title="تعديل"><FileText size={15}/></button><button onClick={()=>setStatus(a.raw as CustomAlert,"مقروءة")} title="تعليم كمقروء"><Check size={15}/></button><button onClick={()=>setStatus(a.raw as CustomAlert,"مؤجلة")} title="تأجيل"><Clock3 size={15}/></button><button onClick={()=>remove(a.raw as CustomAlert)} title="حذف"><Trash2 size={15}/></button></>}
           </div>
         </article>
       })}</div>}
