@@ -1,2 +1,2 @@
-import ManagementModule from "../../components/management-module";
-export default function Page(){return <ManagementModule kind="payments"/>}
+import PaymentsPage from "./payments-page";
+export default function Page(){return <PaymentsPage/>}
