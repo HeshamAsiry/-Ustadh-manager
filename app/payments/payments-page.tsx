@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, CreditCard, Download, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
+import { CalendarDays, Check, CreditCard, Download, FileText, Pencil, Plus, Search, Trash2, UserRound, Wallet, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { printRiwaqDocument } from "../../lib/print-document";
 import "./payments.css";
@@ -170,7 +170,7 @@ export default function PaymentsPage(){
         <td><div className="payment-student"><span><UserRound size={15}/></span><div><strong>{p.student_name}</strong><small>{p.payment_method||"بدون تحديد"}</small></div></div></td>
         <td>{p.month_year||"—"}</td><td>{money(p.amount,p.currency_code)}</td><td>{money(p.amount_paid,p.currency_code)}</td><td>{money(p.total_due,p.currency_code)}</td>
         <td><span className={"payment-status "+p.status}>{p.status==="paid"?"مدفوعة":p.status==="partial"?"مدفوعة جزئيًا":"غير مدفوعة"}</span></td>
-        <td>{p.payment_date||"—"}</td><td className="no-print"><div className="payment-actions"><button onClick={()=>openEdit(p)} aria-label="تعديل"><Pencil size={15}/></button><button onClick={()=>remove(p)} aria-label="حذف"><X size={15}/></button></div></td>
+        <td>{p.payment_date||"—"}</td><td className="no-print"><div className="payment-actions"><button onClick={()=>openEdit(p)} aria-label="تعديل"><Pencil size={15}/></button><button onClick={()=>remove(p)} aria-label="حذف"><Trash2 size={15}/></button></div></td>
       </tr>)}</tbody></table></div>}
     </section>
 
