@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BookOpen, CalendarDays } from "lucide-react";
+import { Bell, BookOpen, CalendarDays, ExternalLink } from "lucide-react";
 import CalendarPage from "../../calendar/page";
 import QuranProgram from "../../components/quran-program";
 import "./my-calendar.css";
@@ -14,6 +14,10 @@ export default function MyCalendarPage(){
         <span>مساحتي الشخصية</span>
         <h1>جدولي الشخصي</h1>
         <p>كل ما يخص جدولك كمعلم في مكان واحد: المواعيد والمهام وبرنامج القرآن الشخصي.</p>
+      </div>
+      <div className="my-calendar-actions">
+        <a className="my-calendar-action secondary" href="/alerts"><Bell size={16}/> التنبيهات</a>
+        <a className="my-calendar-action secondary" href="https://calendar.google.com/calendar/u/0/r" target="_blank" rel="noreferrer"><ExternalLink size={15}/> فتح تقويم Google</a>
       </div>
       <nav className="my-calendar-tabs" aria-label="أقسام الجدول الشخصي">
         <button className={view==="calendar"?"active":""} onClick={()=>setView("calendar")}><CalendarDays size={18}/> المواعيد</button>
