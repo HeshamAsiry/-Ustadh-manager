@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, CreditCard, FileDown, FileText, Pencil, Plus, Search, UserRound, WalletCards, X } from "lucide-react";
+import { CalendarDays, Check, CreditCard, FileDown, FileText, Pencil, Plus, Search, UserRound, Wallet, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { printRiwaqDocument } from "../../lib/print-document";
 import "./payments.css";
@@ -151,7 +151,7 @@ export default function PaymentsPage(){
     {notice&&<div className="payments-notice" role="status"><Check size={16}/><span>{notice}</span><button onClick={()=>setNotice("")}><X size={14}/></button></div>}
 
     <section className="payments-summary">
-      <article><span className="payments-summary-icon"><WalletCards size={18}/></span><div><small>إجمالي المدفوع</small><strong>{currencies.length===1?money(totalPaid,currencies[0]):"متعدد العملات"}</strong></div></article>
+      <article><span className="payments-summary-icon"><Wallet size={18}/></span><div><small>إجمالي المدفوع</small><strong>{currencies.length===1?money(totalPaid,currencies[0]):"متعدد العملات"}</strong></div></article>
       <article><span className="payments-summary-icon"><CreditCard size={18}/></span><div><small>إجمالي المستحق</small><strong>{currencies.length===1?money(totalDue,currencies[0]):"متعدد العملات"}</strong></div></article>
       <article><span className="payments-summary-icon"><FileText size={18}/></span><div><small>عدد المعاملات</small><strong>{filtered.length}</strong></div></article>
       <article><span className="payments-summary-icon"><CalendarDays size={18}/></span><div><small>حسابات مفتوحة</small><strong>{outstanding}</strong></div></article>
@@ -184,8 +184,8 @@ export default function PaymentsPage(){
           <label><span><CreditCard size={14}/> العملة</span><input value={form.currency} onChange={e=>setForm({...form,currency:e.target.value.toUpperCase().slice(0,5)})}/></label>
         </div>
         <div className="payment-form-grid">
-          <label><span><WalletCards size={14}/> إجمالي المبلغ</span><input type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label>
-          <label><span><WalletCards size={14}/> المبلغ المدفوع</span><input type="number" min="0" step="0.01" value={form.paid} onChange={e=>setForm({...form,paid:e.target.value})}/></label>
+          <label><span><Wallet size={14}/> إجمالي المبلغ</span><input type="number" min="0" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label>
+          <label><span><Wallet size={14}/> المبلغ المدفوع</span><input type="number" min="0" step="0.01" value={form.paid} onChange={e=>setForm({...form,paid:e.target.value})}/></label>
         </div>
         <div className="payment-form-grid">
           <label><span><CreditCard size={14}/> طريقة الدفع</span><select value={form.paymentMethod} onChange={e=>setForm({...form,paymentMethod:e.target.value})}><option>تحويل بنكي</option><option>نقدًا</option><option>محفظة إلكترونية</option><option>بطاقة</option><option>أخرى</option></select></label>
