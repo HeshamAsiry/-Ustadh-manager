@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeftRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ListFilter, MoreHorizontal, Plus, X } from "lucide-react";
+import { AlertTriangle, ArrowLeftRight, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, ListFilter, MoreHorizontal, Plus, X } from "lucide-react";
 import { countryFlag } from "../lib/country";
 import { supabase } from "../lib/supabase";
+import { googleCalendarEventUrl } from "../lib/google-calendar";
 import "./calendar.css";
 
 type ViewMode = "month" | "week" | "day";
@@ -333,6 +334,8 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     setMessage(editingId?"تم تحديث الموعد.":"تمت إضافة الموعد.");
   };
 
+  const googleUrlFor=(a:Appointment)=>googleCalendarEventUrl({title:a.subject,date:a.date,time:a.time,durationMinutes:a.duration,timezone:teacherTimezone,details:a.notes});
+
   const deleteAppointment=async(id:string)=>{
     const target=displayAppointments.find(a=>a.id===id);
     if(target?.isRecurring){setMenuId(null);setMessage("هذا الموعد متكرر؛ عطّل قاعدة التكرار بدل إلغائه كموعد منفرد.");return}
@@ -409,7 +412,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
           <div className="appointment-time"><strong>{formatTime12(a.time)}</strong>{personalOnly?<span className="student-time">توقيت المعلم</span>:<span className="student-time">الطالب: {formatTime12(zonedParts(teacherWallClockToUtc(a.date,a.time,teacherTimezone).toISOString(),a.timezone).time)}</span>}</div>
           <div className="appointment-main"><h3>{!personalOnly&&<span className="student-country-flag">{countryFlag(a.countryCode)}</span>}{a.student}</h3><p>{a.subject}</p><small>{personalOnly?"موعد شخصي":a.country+" · "} {a.duration} دقيقة</small></div>
           <button className="more" onClick={()=>setMenuId(menuId===a.id?null:a.id)}><MoreHorizontal size={19}/></button>
-          {menuId===a.id&&<div className="appointment-menu">{a.isRecurring?<button onClick={()=>{setMenuId(null);setMessage("هذا موعد ناتج عن قاعدة أسبوعية. عطّل قاعدة التكرار من إعدادات الجدول بدل إلغائه كموعد منفرد.")}}>متكرر أسبوعيًا</button>:<><button onClick={()=>openEdit(a)}>تعديل</button><button onClick={()=>deleteAppointment(a.id)}>إلغاء الموعد</button></>}</div>}
+          {menuId===a.id&&<div className="appointment-menu">{a.isRecurring?<button onClick={()=>{setMenuId(null);setMessage("هذا موعد ناتج عن قاعدة أسبوعية. عطّل قاعدة التكرار من إعدادات الجدول بدل إلغائه كموعد منفرد.")}}>متكرر أسبوعيًا</button>:<><button onClick={()=>openEdit(a)}>تعديل</button>{a.eventType==="personal"&&<a className="calendar-google-link" href={googleUrlFor(a)} target="_blank" rel="noreferrer"><ExternalLink size={15}/> Google Calendar</a>}<button onClick={()=>deleteAppointment(a.id)}>إلغاء الموعد</button></>}</div>}
         </article>)}</div>
         <button className="column-add" onClick={()=>openAdd(key)}><Plus size={15}/> إضافة موعد</button>
       </div>})}
@@ -418,7 +421,7 @@ export default function CalendarPage({scope="lessons"}:{scope?: "lessons"|"perso
     {!loading&&view==="day"&&<section className="day-view">
       <div className="day-view-head"><div><span>الجدول اليومي</span><h2>{formatArabicDate(selected)}</h2></div><span className="day-count">{dayAppointments.length} مواعيد</span></div>
       {dayAppointments.length?dayAppointments.map(a=><article className={"detail-appointment "+(conflictIds.has(a.id)?"appointment-conflict":"")} key={a.id}>
-        <div className="detail-time"><strong>{formatTime12(a.time)}</strong><span>{formatTime12(a.end)}</span></div><div className="detail-line"/><div className="detail-info"><h3>{!personalOnly&&<span className="student-country-flag">{countryFlag(a.countryCode)}</span>}{a.student}</h3><p>{a.subject}{!personalOnly&&a.country?" · "+a.country:""}</p><span>{personalOnly?<><Clock3 size={14}/> التوقيت: {teacherTimezone}</>:<><Clock3 size={14}/> توقيت الطالب: {formatTime12(zonedParts(teacherWallClockToUtc(a.date,a.time,teacherTimezone).toISOString(),a.timezone).time)}</>}</span></div><span className="status">{a.status==="completed"?"مكتملة":a.status==="cancelled"?"ملغاة":a.status==="pending"?"قيد الانتظار":"مؤكد"}</span><button className="more" onClick={()=>setMenuId(menuId===a.id?null:a.id)}><MoreHorizontal size={18}/></button>{menuId===a.id&&<div className="appointment-menu">{a.isRecurring?<button onClick={()=>{setMenuId(null);setMessage("هذا موعد ناتج عن قاعدة أسبوعية. عطّل قاعدة التكرار من إعدادات الجدول بدل إلغائه كموعد منفرد.")}}>متكرر أسبوعيًا</button>:<><button onClick={()=>openEdit(a)}>تعديل</button><button onClick={()=>deleteAppointment(a.id)}>إلغاء الموعد</button></>}</div>}
+        <div className="detail-time"><strong>{formatTime12(a.time)}</strong><span>{formatTime12(a.end)}</span></div><div className="detail-line"/><div className="detail-info"><h3>{!personalOnly&&<span className="student-country-flag">{countryFlag(a.countryCode)}</span>}{a.student}</h3><p>{a.subject}{!personalOnly&&a.country?" · "+a.country:""}</p><span>{personalOnly?<><Clock3 size={14}/> التوقيت: {teacherTimezone}</>:<><Clock3 size={14}/> توقيت الطالب: {formatTime12(zonedParts(teacherWallClockToUtc(a.date,a.time,teacherTimezone).toISOString(),a.timezone).time)}</>}</span></div><span className="status">{a.status==="completed"?"مكتملة":a.status==="cancelled"?"ملغاة":a.status==="pending"?"قيد الانتظار":"مؤكد"}</span><button className="more" onClick={()=>setMenuId(menuId===a.id?null:a.id)}><MoreHorizontal size={18}/></button>{menuId===a.id&&<div className="appointment-menu">{a.isRecurring?<button onClick={()=>{setMenuId(null);setMessage("هذا موعد ناتج عن قاعدة أسبوعية. عطّل قاعدة التكرار من إعدادات الجدول بدل إلغائه كموعد منفرد.")}}>متكرر أسبوعيًا</button>:<><button onClick={()=>openEdit(a)}>تعديل</button>{a.eventType==="personal"&&<a className="calendar-google-link" href={googleUrlFor(a)} target="_blank" rel="noreferrer"><ExternalLink size={15}/> Google Calendar</a>}<button onClick={()=>deleteAppointment(a.id)}>إلغاء الموعد</button></>}</div>}
       </article>):<div className="empty-day">لا توجد مواعيد في هذا اليوم.<button className="add-inline" onClick={()=>openAdd()}>إضافة موعد</button></div>}
     </section>}
 
