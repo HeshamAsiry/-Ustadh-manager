@@ -2,8 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const SUPABASE_URL = "https://pnhmfkigcvynhrmvcxam.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_NawCKjOBIvETIQEFj3u8hg_jBJSmBJs";
+const SUPABASE_URL = "https://tzbafipmzhsjzziqcxoa.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_GNXLzI9Ft0R6w8seT7DfdQ_TlPEOUUx";
 
 export default async function Home() {
   const cookieStore = await cookies();
