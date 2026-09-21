@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, CalendarDays, Check, ChevronLeft, Clock3, CreditCard, Download, FileText, Plus, Search, Clock3, Trash2, UserRound, X } from "lucide-react";
+import { Bell, CalendarDays, Check, ChevronLeft, Clock3, CreditCard, Download, FileText, Plus, Search, Trash2, X } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { printRiwaqDocument } from "../../lib/print-document";
 import "./alerts.css";
