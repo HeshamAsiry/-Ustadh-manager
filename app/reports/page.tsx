@@ -8,7 +8,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import "./reports.css";
 
-type Student = { id:string; full_name:string; age:number|null; country_name:string|null; monthly_hours:number; status:string; currency_code:string|null; notes:string|null; timezone?:string|null };
+type Student = { id:string; legacy_id?:string|null; full_name:string; age:number|null; country_name:string|null; monthly_hours:number; status:string; currency_code:string|null; notes:string|null; timezone?:string|null };
 type EventRow = { id:string; student_id:string|null; event_type:string; title:string; starts_at:string; ends_at:string; status:string; notes:string|null };
 type Payment = { id:string; student_id:string|null; student_name:string|null; billing_period?:string|null; month_year:string|null; amount:number|null; amount_paid:number|null; total_due:number|null; currency_code:string|null; status:string; payment_date:string|null; due_date:string|null };
 type Legacy = Record<string,unknown>;
@@ -30,7 +30,7 @@ export default function ReportsPage(){
 
  useEffect(()=>{(async()=>{
    const [s,e,p,u]=await Promise.all([
-    supabase.from("students").select("id,full_name,age,country_name,monthly_hours,status,currency_code,notes,timezone").order("full_name"),
+    supabase.from("students").select("id,legacy_id,full_name,age,country_name,monthly_hours,status,currency_code,notes,timezone").order("full_name"),
     supabase.from("events").select("id,student_id,event_type,title,starts_at,ends_at,status,notes").order("starts_at",{ascending:false}),
     supabase.from("payments").select("id,student_id,student_name,billing_period,month_year,amount,amount_paid,total_due,currency_code,status,payment_date,due_date").order("payment_date",{ascending:false}),
     supabase.auth.getUser()
@@ -55,10 +55,11 @@ export default function ReportsPage(){
  const attendance=completed.length+cancelled.length?Math.round(completed.length/(completed.length+cancelled.length)*100):0;
  const selectedPayments=useMemo(()=>payments.filter(p=>p.student_id===selectedId),[payments,selectedId]);
  const due=selectedPayments.reduce((s,p)=>s+Number(p.total_due??p.amount??0),0),paid=selectedPayments.reduce((s,p)=>s+Number(p.amount_paid??0),0),remaining=Math.max(0,due-paid);
- const studentHifz=useMemo(()=>hifz.filter(x=>str(x,"studentId","student_id")===selectedId),[hifz,selectedId]);
- const studentRevision=useMemo(()=>revision.filter(x=>str(x,"studentId","student_id")===selectedId),[revision,selectedId]);
- const studentJuz=useMemo(()=>juz.filter(x=>str(x,"studentId","student_id")===selectedId),[juz,selectedId]);
- const studentLegacySessions=useMemo(()=>legacySessions.filter(x=>str(x,"studentId","student_id")===selectedId&&(!str(x,"date")||str(x,"date")>=from&&str(x,"date")<=to)),[legacySessions,selectedId,from,to]);
+ const studentKeys=selected?[selected.id,selected.legacy_id].filter(Boolean) as string[]:[];
+ const studentHifz=useMemo(()=>hifz.filter(x=>studentKeys.includes(str(x,"studentId","student_id"))),[hifz,studentKeys.join("|")]);
+ const studentRevision=useMemo(()=>revision.filter(x=>studentKeys.includes(str(x,"studentId","student_id"))),[revision,studentKeys.join("|")]);
+ const studentJuz=useMemo(()=>juz.filter(x=>studentKeys.includes(str(x,"studentId","student_id"))),[juz,studentKeys.join("|")]);
+ const studentLegacySessions=useMemo(()=>legacySessions.filter(x=>studentKeys.includes(str(x,"studentId","student_id"))&&(!str(x,"date")||str(x,"date")>=from&&str(x,"date")<=to)),[legacySessions,selectedId,from,to]);
  const finance=useMemo(()=>{
    const map=new Map<string,{due:number;paid:number}>();
    payments.forEach(p=>{const c=p.currency_code||"غير محدد";const v=map.get(c)||{due:0,paid:0};v.due+=Number(p.total_due??p.amount??0);v.paid+=Number(p.amount_paid??0);map.set(c,v)});
